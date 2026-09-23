@@ -145,11 +145,16 @@
     background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4);
     box-shadow: 0 0 16px rgba(245, 158, 11, 0.15);
   }
+  .session-banner.bad {
+    background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4);
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.2);
+  }
   .session-banner-title {
     font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 8px;
   }
   .session-banner.success .session-banner-title { color: #10b981; }
   .session-banner.warn .session-banner-title { color: #f59e0b; }
+  .session-banner.bad .session-banner-title { color: #ef4444; }
   .session-banner-body { color: #d0d8e2; font-size: 13px; line-height: 1.5; }
   .session-banner-body b { color: #fff; }
   .is-hidden { display: none !important; }
@@ -179,6 +184,26 @@
   }
   .kb-pill {
     background: #1e2a3a; padding: 2px 6px; border-radius: 4px; color: #d0d8e2; font-weight: 700;
+  }
+
+  /* Stability & Memory Tips */
+  .tips-card {
+    margin-top: 14px; background: rgba(16, 22, 34, 0.65);
+  }
+  .tips-title {
+    margin-bottom: 8px;
+  }
+  .tips-body {
+    font-size: 12px; color: var(--text-muted); line-height: 1.6;
+  }
+  .tips-item {
+    margin-bottom: 6px;
+  }
+  .tips-item b {
+    color: var(--text-main);
+  }
+  .tips-kbd {
+    background: #1e2a3c; padding: 2px 6px; border-radius: 4px; font-size: 11px; color: #fff;
   }
 </style>
 </head>
@@ -215,8 +240,6 @@
     <button id="startBtn" type="button" tabindex="0" autofocus>
       <span>▶</span> INICIAR JAILBREAK [X / Toque]
     </button>
-
-    
     <div class="launch-actions">
       <button id="reloadBtn" type="button" class="btn-secondary">⟳ Recarregar Página</button>
       <button id="clearSessionBtn" type="button" class="btn-secondary is-hidden">↺ Limpar Sessão</button>
@@ -261,6 +284,28 @@
           <b>Anti-WLOD Shield</b>
           <span>Proteção contra underflow de refcount (vnode/prison) e sem loop de worker.</span>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dicas de Memória & Estabilidade -->
+  <div class="specs-card tips-card">
+    <div class="specs-title tips-title">
+      <span>💡</span>
+      <span>Dicas para Evitar "Memória Cheia" &amp; Aumentar a Taxa de Sucesso</span>
+    </div>
+    <div class="tips-body">
+      <div class="tips-item">
+        <b>1. Aguarde 15 a 20 segundos após ligar o PS4:</b> Permita que a interface do console e os serviços em segundo plano terminem de carregar antes de abrir o Guia do Usuário / Navegador.
+      </div>
+      <div class="tips-item">
+        <b>2. Feche abas secundárias:</b> Pressione <kbd class="tips-kbd">OPTIONS</kbd> &gt; <b>Fechar Janela</b> em outras abas para liberar a memória heap do WebKit.
+      </div>
+      <div class="tips-item">
+        <b>3. Limpeza periódica do WebKit:</b> Se o aviso de memória cheia insistir, acesse <kbd class="tips-kbd">OPTIONS</kbd> &gt; <b>Configurações</b> &gt; <b>Excluir Cookies</b> e <b>Limpar Dados de Navegação</b>.
+      </div>
+      <div class="tips-item">
+        <b>4. Sem downloads em segundo plano:</b> Certifique-se de que não haja downloads de jogos ou atualizações do sistema ativos/pausados na fila.
       </div>
     </div>
   </div>
@@ -418,6 +463,24 @@
         startBtn.style.background = "linear-gradient(135deg, #10b981 0%, #059669 100%)";
         startBtn.style.borderColor = "#34d399";
         if (clearSessionBtn) clearSessionBtn.classList.remove("is-hidden");
+    } else if (sessionState === "reboot_required") {
+        sessionBanner.className = "session-banner bad";
+        sessionBanner.innerHTML =
+            '<div class="session-banner-title">' +
+            '  <span>🛑</span>' +
+            '  <span>Reinicialização do Console Necessária</span>' +
+            '</div>' +
+            '<div class="session-banner-body">' +
+            '  A execução anterior encontrou uma falha no arranjo do kernel (<code>capsLive=0</code>) e a tabela sysctl foi perturbada. No FreeBSD/Orbis OS, a tabela <code>.data</code> só é restaurada reiniciando o sistema. <b>Reinicie o PS4 pelo Menu Rápido (Energia &gt; Opções de Energia &gt; Reiniciar o PS4)</b> antes de tentar novamente para garantir 100% de estabilidade.' +
+            '</div>';
+        sessionBanner.classList.remove("is-hidden");
+        startBtn.innerHTML = "<span>🔄</span> REINICIE O CONSOLE ANTES DE CONTINUAR";
+        startBtn.style.background = "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)";
+        startBtn.style.borderColor = "#f87171";
+        if (clearSessionBtn) {
+            clearSessionBtn.textContent = "Já Reiniciei o PS4 (Limpar Aviso)";
+            clearSessionBtn.classList.remove("is-hidden");
+        }
     } else if (sessionState === "interrupted" || sessionState === "in_progress") {
         sessionBanner.className = "session-banner warn";
         sessionBanner.innerHTML =

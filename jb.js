@@ -152,7 +152,9 @@ let jbRestoreHook = null;
 let allDone = false,
   jailbroken = false,
   kpatched = false,
-  payloadRunning = false;
+  payloadRunning = false,
+  alreadyRoot = false,
+  kernelDataDirty = false;
 
 (async function () {
   try {
@@ -567,6 +569,7 @@ let allDone = false,
       const uid0 = sc(SYS.getuid).i32;
       const su0 = sc(SYS.setuid, 0).i32;
       if (uid0 === 0 || su0 === 0) {
+        alreadyRoot = true;
         mark("ALREADY-ROOT", "getuid=" + uid0 + " setuid(0)=" + su0);
         state("ALREADY JAILBROKEN -- nothing to do", "ok");
         setStageUI(4, "CONSOLE JÁ DESBLOQUEADO (ROOT ATIVO)", "O console já possui privilégios de root. Nenhuma ação necessária.", "ok");
@@ -2317,6 +2320,13 @@ let allDone = false,
       )
     ) {
       allDone = true;
+      kernelDataDirty = true;
+      setStageUI(
+        3,
+        "FALHA NO ARRANJO DO KERNEL (REINICIAR CONSOLE)",
+        "Caps sysctl não responderam (capsLive=0). Reinicie o PS4 pelo menu rápido para restaurar o kernel.",
+        "bad",
+      );
     } else {
       {
         let i = 0;
@@ -3336,6 +3346,7 @@ let allDone = false,
         armCount +
         " next=set_cr_sceCaps_bit62_ucred+0x64_bit30",
     );
+    kernelDataDirty = true;
     mark(
       "KF-DATA-LEFT-DIRTY",
       "oid+0x50 left nonzero and oid+0x51..0x54" +
@@ -3434,9 +3445,11 @@ let allDone = false,
         (allDone ? "" : "  INCOMPLETE"),
     );
     try {
-      finishUI(payloadRunning);
-      if (allDone || payloadRunning) {
+      finishUI(payloadRunning || alreadyRoot);
+      if (payloadRunning || alreadyRoot) {
         sessionStorage.setItem("jb_session_state", "completed");
+      } else if (kernelDataDirty || failCount > 0) {
+        sessionStorage.setItem("jb_session_state", "reboot_required");
       } else {
         sessionStorage.setItem("jb_session_state", "interrupted");
       }
