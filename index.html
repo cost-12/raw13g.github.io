@@ -111,11 +111,24 @@
     box-shadow: 0 6px 20px var(--accent-glow);
     transition: all 0.2s ease-in-out; outline: none; width: 100%; max-width: 420px;
   }
-  #startBtn:hover, #startBtn:focus {
+  #startBtn:hover {
     transform: translateY(-2px);
     background: linear-gradient(135deg, #00c6ed 0%, #0096c7 100%);
     box-shadow: 0 8px 28px rgba(0, 210, 255, 0.55);
     border-color: #fff;
+  }
+  #startBtn:focus, #startBtn:focus-visible {
+    transform: translateY(-2px);
+    background: linear-gradient(135deg, #00c6ed 0%, #0096c7 100%);
+    box-shadow: 0 0 0 3px var(--bg-dark), 0 0 0 6px var(--accent), 0 8px 32px rgba(0, 210, 255, 0.7);
+    border-color: #fff;
+    outline: none;
+  }
+  .btn-secondary:focus, .btn-secondary:focus-visible {
+    box-shadow: 0 0 0 2px var(--bg-dark), 0 0 0 4px var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    outline: none;
   }
   #startBtn:active { transform: translateY(1px); }
 
@@ -199,7 +212,7 @@
       <!-- Session Status Card (Managed via sessionStorage) -->
     <div id="sessionBanner" class="is-hidden"></div>
 
-    <button id="startBtn" type="button">
+    <button id="startBtn" type="button" tabindex="0" autofocus>
       <span>▶</span> INICIAR JAILBREAK [X / Toque]
     </button>
 
@@ -320,15 +333,68 @@
         location.replace(target);
     }
 
-    startBtn.addEventListener("click", go);
-    reloadBtn.addEventListener("click", function () { location.reload(); });
+    function handleAction(e) {
+        if (launched) return;
+        // Do not intercept clicks or key events on secondary actions (reload / clear session)
+        if (e && e.target) {
+            var targetEl = e.target;
+            if (targetEl.id === "reloadBtn" || targetEl.id === "clearSessionBtn") return;
+            if (targetEl.closest && targetEl.closest(".btn-secondary")) return;
+        }
+        go();
+    }
 
-    // Keyboard & DualShock 4 Controller shortcut (X / Cross / Enter / Space)
+    startBtn.addEventListener("click", handleAction);
+    reloadBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        location.reload();
+    });
+
+    // PS4 Controller & Keyboard Event Handling:
+    // In PS4 WebKit, pressing the 'X' (Cross) button triggers a 'click' event anywhere on window
+    // as well as Enter (13) / Space (32) / keyCode 0 when focused.
+    window.addEventListener("click", handleAction);
+
     window.addEventListener("keydown", function (e) {
-        if (e.key === "Enter" || e.key === " " || e.key === "x" || e.key === "X" || e.keyCode === 13 || e.keyCode === 32 || e.keyCode === 88) {
-            go();
+        var k = e.key || e.keyCode;
+        // Arrow navigation between buttons (D-Pad / Left Stick)
+        if (k === "ArrowDown" || k === "ArrowRight" || k === 40 || k === 39) {
+            if (document.activeElement === startBtn) {
+                if (clearSessionBtn && !clearSessionBtn.classList.contains("is-hidden")) {
+                    clearSessionBtn.focus();
+                } else if (reloadBtn) {
+                    reloadBtn.focus();
+                }
+            }
+        } else if (k === "ArrowUp" || k === "ArrowLeft" || k === 38 || k === 37) {
+            if (document.activeElement === reloadBtn || document.activeElement === clearSessionBtn) {
+                startBtn.focus();
+            }
+        } else if (k === "Enter" || k === " " || k === 13 || k === 32 || k === 88 || k === "x" || k === "X" || k === 0) {
+            handleAction(e);
         }
     });
+
+    startBtn.addEventListener("keydown", function (e) {
+        var k = e.key || e.keyCode;
+        if (k === "Enter" || k === " " || k === 13 || k === 32) {
+            e.preventDefault();
+            handleAction(e);
+        }
+    });
+
+    // Initial focus on startBtn (Crucial for PS4 spatial navigation / X button)
+    function focusStart() {
+        try {
+            if (startBtn && typeof startBtn.focus === "function") {
+                startBtn.focus();
+            }
+        } catch (e) {}
+    }
+    focusStart();
+    setTimeout(focusStart, 50);
+    setTimeout(focusStart, 200);
+    window.addEventListener("load", focusStart);
     // Session State Notification (sessionStorage)
     var sessionState = null;
     try {
@@ -375,32 +441,6 @@
             location.reload();
         });
     }
-
-    // DualShock 4 Controller 'X' button support via Gamepad API
-    function pollGamepad() {
-        if (launched) return;
-        try {
-            var gps = navigator.getGamepads ? navigator.getGamepads() : [];
-            for (var i = 0; i < gps.length; i++) {
-                var gp = gps[i];
-                if (gp && gp.buttons && gp.buttons[0] && gp.buttons[0].pressed) {
-                    go();
-                    return;
-                }
-            }
-        } catch (e) {}
-        if (!launched && window.requestAnimationFrame) {
-            requestAnimationFrame(pollGamepad);
-        }
-    }
-    if (window.requestAnimationFrame) {
-        requestAnimationFrame(pollGamepad);
-    }
-    window.addEventListener("gamepadconnected", function () {
-        if (!launched && window.requestAnimationFrame) {
-            requestAnimationFrame(pollGamepad);
-        }
-    });
 
     // ApplicationCache handlers
     var ac = window.applicationCache;
