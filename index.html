@@ -119,23 +119,24 @@
   }
   #startBtn:active { transform: translateY(1px); }
 
-  /* Countdown & Controls */
-  #countdownWrap {
-    margin-top: 18px; max-width: 420px; margin-left: auto; margin-right: auto;
+  /* Session Status Card */
+  .session-banner {
+    border-radius: 12px; padding: 14px 18px; margin-bottom: 18px; text-align: left;
+    display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.45;
   }
-  .countdown-info {
-    font-size: 12px; color: var(--text-muted); margin-bottom: 8px;
-    display: flex; justify-content: space-between; align-items: center;
+  .session-banner.success {
+    background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.4);
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
   }
-  .countdown-info b { color: var(--accent); font-weight: 700; }
-  .progress-bg {
-    width: 100%; height: 6px; background: #1c2738;
-    border-radius: 4px; overflow: hidden; position: relative;
+  .session-banner.warn {
+    background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4);
+    box-shadow: 0 0 16px rgba(245, 158, 11, 0.15);
   }
-  .progress-bar {
-    width: 100%; height: 100%; background: linear-gradient(90deg, #00d2ff, #10b981);
-    transition: width 0.1s linear;
+  .session-banner-title {
+    font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 8px;
   }
+  .session-banner.success .session-banner-title { color: #10b981; }
+  .session-banner.warn .session-banner-title { color: #f59e0b; }
 
   .launch-actions {
     display: flex; justify-content: center; gap: 12px; margin-top: 14px;
@@ -158,7 +159,7 @@
   #cacheText.bad { color: var(--bad); }
 
   .kb-hint {
-    font-size: 11px; color: #58697c; text-align: center; margin-top: 6px;
+    font-size: 11px; color: #58697c; text-align: center; margin-top: 10px;
   }
   .kb-pill {
     background: #1e2a3a; padding: 2px 6px; border-radius: 4px; color: #d0d8e2; font-weight: 700;
