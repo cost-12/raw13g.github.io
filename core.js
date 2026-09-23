@@ -355,6 +355,8 @@ function failed() {
     giveUp("attempt-ceiling");
     return;
   }
+  // PSPULSE stability: release allocations from the failed attempt to prevent OOM
+  releaseAttemptAllocations();
   emit("AUTO-RETRY-AFTER-FAILURE", `attempt=${attemptNumber}`);
   stopped = false;
   retryScheduled = false;
@@ -364,7 +366,7 @@ function failed() {
     } catch {}
     attemptNumber++;
     startAttempt();
-  }, AUTO_RETRY_DELAY_MS);
+  }, Math.max(AUTO_RETRY_DELAY_MS, 750));
 }
 
 function releaseAttemptAllocations() {

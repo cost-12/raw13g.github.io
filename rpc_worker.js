@@ -15,6 +15,7 @@ let pivotObj = null;
 let execLo = 0, execHi = 0;
 let origLo = 0, origHi = 0;
 let armed = false;
+let spinning = false;
 
 const VECTOR_OFF = 0x10;
 const INLINE_OFF = 0x10;
@@ -196,13 +197,24 @@ const api = {
     },
 
     spin() {
-
+        spinning = true;
         const sink = new Uint32Array(4);
         let x = 1;
-        for (;;) {
-            x = (x * 1103515245 + 12345) >>> 0;
-            sink[x & 3] = x;
+        function loop() {
+            if (!spinning) return;
+            for (let i = 0; i < 50000; i++) {
+                x = (x * 1103515245 + 12345) >>> 0;
+                sink[x & 3] = x;
+            }
+            if (spinning) setTimeout(loop, 0);
         }
+        loop();
+        return true;
+    },
+
+    stopSpin() {
+        spinning = false;
+        return true;
     },
 };
 
