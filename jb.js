@@ -155,6 +155,9 @@ let allDone = false,
   payloadRunning = false;
 
 (async function () {
+  try {
+    sessionStorage.setItem("jb_session_state", "in_progress");
+  } catch (e) {}
   let p = null;
 
   const opened = [];
@@ -568,6 +571,9 @@ let allDone = false,
         state("ALREADY JAILBROKEN -- nothing to do", "ok");
         setStageUI(4, "CONSOLE JÁ DESBLOQUEADO (ROOT ATIVO)", "O console já possui privilégios de root. Nenhuma ação necessária.", "ok");
         finishUI(true);
+        try {
+          sessionStorage.setItem("jb_session_state", "completed");
+        } catch (e) {}
         return;
       }
     } catch (error_) {
@@ -3115,6 +3121,9 @@ let allDone = false,
                   );
                   if (plDone) {
                     setStageUI(4, "🎉 JAILBREAK CONCLUÍDO — PAYLOAD ATIVO", "Privilégios root concedidos, Anti-WLOD Shield ativo e payload2.bin em execução.", "ok");
+                    try {
+                      sessionStorage.setItem("jb_session_state", "completed");
+                    } catch (e) {}
                   }
                 }
               }
@@ -3203,6 +3212,9 @@ let allDone = false,
                 "  (.data/.text/caps need a reboot; the refcounted handles do not)",
             );
             allDone = true;
+            try {
+              sessionStorage.setItem("jb_session_state", "completed");
+            } catch (e) {}
 
             // Neutralize POOL routing headers and exit cleanly without redundant multiFire
             setNode0(0, N0SINK);
@@ -3370,6 +3382,9 @@ let allDone = false,
         " and terminate() would make them syscall)",
     );
   } catch (e) {
+    try {
+      sessionStorage.setItem("jb_session_state", "interrupted");
+    } catch (error_) {}
     mark("THREW", e && e.message ? e.message : String(e));
     state("threw", "bad");
     setStageUI(currentStage || 1, "FALHA NA EXECUÇÃO DO EXPLOIT", (e && e.message) || String(e), "bad");
@@ -3420,6 +3435,11 @@ let allDone = false,
     );
     try {
       finishUI(payloadRunning);
+      if (allDone || payloadRunning) {
+        sessionStorage.setItem("jb_session_state", "completed");
+      } else {
+        sessionStorage.setItem("jb_session_state", "interrupted");
+      }
     } catch (error_) {}
   }
 })();

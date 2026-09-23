@@ -180,7 +180,7 @@
 
   <div id="topBar">
     <div class="brand-left">
-      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAA3tUlEQVR42t29d5xV5bn3/b3v1XaZmT3MDG2Gjoo0KQJSREHAEvuJYowxia9503NSjq9PmtEkGp9TzJNzTo6aclLURANJNBELIgIqVRAQkI44Q2f67LLqfb9/7L3HYZiBQUly8uzPZ39mZs1ea691XffVfle5BX/Dl9ZaAhKIhBC6eFwIgVJqYBiGI48cOTI6Foudb9v2kCiKqtva2ipbWlpKwjCMKaVMIQSGYYSGYbi+76czmUxDNps95Pv+/ubm5h1tbW3bGhsbt99zzz11nb5bLF++3Fi+fLn67ne/q/5WNBB/A6KLAtG1EEJ1OD44l8tN9zzv0kwmMymKonOAVBAEKKUIwxClFFEUEYYhWut2ZhWYgGVZaK2JogjDMHBdl+bmZlpbW1uy2eyeXC63PpvNrjh69OiqBx544N2OC2HhwoVi/vz5CtD/VzKguOJmz54ddjg2vKGh4dpMJnOD67pTDMOIh2GI67q4rksURdo0TVUgshBCIKUUUkpRJHyREVprtNZaCKELxzRAFEVSSim01iilyGQyNDY25lzXXed53jPHjx9/9u67795bvKd7773XvO+++06QyL93BgittRRCRAVCWYcOHbo6nU7f4bruPNu247lcjlwuh5Qysm1bG4YhbdsWhmG0E7r4Lq76ItE7MbkjM9rfSimtlNKAiqJIKKUMAN/3OX78eM513SXZbPaX//7v//7chg0bgsI1jIKE6r9bBixYsMCYP39+BHD06NGShoaGj3ue9zkhxBilFK7rYllW6DiOsCxLmqYppJRdEvsMJK2nDFFKKR1FkQmQyWRobm7emk6nH1m+fPljDz/8cLrzM/zdMEBrLRYuXCjnz58fbd261Q7D8E7Xdf/JcZzhBZ2uEomEtm1bWpYlpJSnJXZ3/+t8vLNUnIoRRWZEUaTCMBRCCBmGIfX19Xuz2exD3/jGN/777bff9hcsWGDcfPPN6i+hlsRfgPhGUd2sWrXqWiHE92zbHh8EAYZhRMlkUti2LQ3DOIl43f3dUSJ6QvyOtqEj4btihlKq/adSSkVRpIUQRhRFNDQ0bGpqavrOjTfe+GznZztbL/Nsr3ohRLRixYqBhmH8i5TyI4ZhAETl5eXCtm2juNpPR+SiKupK53f8bFcr/lQSUHBx2xkgpezICGmaJlEUKa217tev3/jy8vI/r1ix4qlDhw7dLYSo01obwFmTBnGWiC+LLuWKFStuk1L+MJFI9FFKqdLSUhzHkV2t4M76vitVdDop6ak96Mo+dKGO2n9GUUQURUopRSwWk42Njceam5u/Nm/evN90fua/qQQUxfLPf/5zory8/N9jsdinhBDE4/EwFouZ3a14KeVJq7w7w3umhrjzeR0lpysGFP+WUqKUar83wzBkFEX4vh+Wlpb2KS0tfWLlyW528/AALcI/2XvTW+UACg3X7t08fV4AA91sWbX3gW8/U91x4z0VbLw0Qf/A4jVqV0dK7uU0Hk6aOls6hVl76X6aOlt2r545z7/H/5903b7118/3T21/p8+T5T88P/u6v/fv+z+/+1d/39097/z481X768vPfffrd6d0fvL57+ff0fP377k4/t/q15qT09/9u5//Pvf/9/75z27674y+/7t1t6r9/+766d6/7679uX6d//7t2+/7t27X8d/P50+/722u/b976W997576z2z76X0Vd4QAAAABJRU5ErkJggg==" alt="" width="30" height="30">
+      <img src="logo_raw.png" alt="RAW GAME Logo" width="30" height="30">
       <b>RAW GAME</b>
       <span class="brand-pill">PS4 13.52</span>
     </div>
@@ -410,9 +410,10 @@
           var txt = out ? out.textContent : "";
           if (successSeen(txt)) {
             try {
+              sessionStorage.setItem("jb_session_state", "completed");
               sessionStorage.removeItem(KEY);
             } catch (e) {
-              /* ignore sessionStorage remove errors */
+              /* ignore sessionStorage errors */
             }
             handled = true;
             return;
@@ -420,6 +421,9 @@
           if (!st || st.textContent !== "threw") return;
           if (!txt.includes("attempt-ceiling")) return;
           handled = true;
+          try {
+            sessionStorage.setItem("jb_session_state", "interrupted");
+          } catch (e) {}
           var rec = spendBudget();
           if (!rec || rec.n > MAX) return;
           if (window.setStage) {
