@@ -2441,11 +2441,13 @@ let allDone = false,
             "cr_uid=" + t3 + " getuid=" + uidNow,
           );
           // Structural validation: cr_ref (offset 0x00) must be a plausible
-          // small refcount. If UCRED was derived incorrectly by passA/passB,
+          // refcount. If UCRED was derived incorrectly by passA/passB,
           // cr_ref will be garbage.  An incorrect UCRED would corrupt the
           // td_ucred repair for worker w1, causing crfree() to fault on exit.
+          // Note: PS4 WebKit with 512 IPv6 spray sockets + workers legitimately
+          // has refcounts in the low thousands (observed: ~1635 on 13.52).
           const crRef = kread32(UCRED);
-          const crRefOk = crRef > 0 && crRef < 1000;
+          const crRefOk = crRef > 0 && crRef < 100000;
           mark(
             "KRW-T3C-UCRED-SHAPE",
             "*(ucred+0x00)=cr_ref=" + crRef + " plausible=" + (crRefOk ? 1 : 0),
@@ -2453,7 +2455,7 @@ let allDone = false,
           check(
             "krw-ucred-shape",
             crRefOk,
-            "cr_ref=" + crRef + " (expected 1-999, a small positive refcount)",
+            "cr_ref=" + crRef + " (expected 1-99999, a positive refcount)",
           );
           mark("KRW-T3B-READ8-HEAP", "read8(ucred)=" + read8(UCRED));
 
