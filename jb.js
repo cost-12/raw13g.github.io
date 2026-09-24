@@ -752,7 +752,7 @@ const WORKER_STATE = {
         alreadyRoot = true;
         mark("ALREADY-ROOT", "getuid=" + uid0 + " setuid(0)=" + su0);
         state("ALREADY JAILBROKEN -- nothing to do", "ok");
-        setStageUI(4, "CONSOLE JÁ DESBLOQUEADO (ROOT ATIVO)", "O PS4HEN já está ativo na memória! Pressione o botão PS no controle para voltar ao menu do PS4.", "ok");
+        setStageUI(4, "CONSOLE JÁ DESBLOQUEADO (ROOT ATIVO)", "O PS4HEN já está ativo na memória! O console será reiniciado em alguns segundos.", "ok");
         finishUI(true);
         try {
           sessionStorage.setItem("jb_session_state", "completed");
