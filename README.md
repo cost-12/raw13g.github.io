@@ -14,7 +14,8 @@ Este projeto incorpora melhorias de engenharia do kernel FreeBSD e padrões arqu
   - [1. Eliminação da Luz Branca da Morte (WLOD / Desligamento Infinito)](#1-eliminação-da-luz-branca-da-morte-wlod--desligamento-infinito)
   - [2. Prevenção de Kernel Panics & Watchdog Timeouts](#2-prevenção-de-kernel-panics--watchdog-timeouts)
   - [3. Higiene de Memória do WebKit & Watchdog de Heap](#3-higiene-de-memória-do-webkit--watchdog-de-heap)
-  - [4. Blindagem Contra Reexecução Acidental](#4-blindagem-contra-reexecução-acidental)
+  - [4. Validação Prévia de Offsets & Alinhamento de Memória](#4-validação-prévia-de-offsets--alinhamento-de-memória)
+  - [5. Blindagem Contra Reexecução Acidental & Autonomia do Payload](#5-blindagem-contra-reexecução-acidental--autonomia-do-payload)
 - [Estrutura do Repositório](#estrutura-do-repositório)
 - [Instruções de Uso](#instruções-de-uso)
 - [Aviso Legal](#aviso-legal)
@@ -89,22 +90,33 @@ Além disso, o evento clássico `pagehide` **não dispara no PS4** quando o usu�
 
 #### Soluções Implementadas
 
-- **Worker Cooperativo e Interrupção Graciosa ([rpc_worker.js](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/rpc_worker.js))**: O loop infinito foi substituído por um loop cooperativo em fatias com `setTimeout(loop, 0)` e flag `spinning`. Adicionado o método `stopSpin()`, acionado por [jb.js](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/jb.js) logo após o reparo de `w1.td_ucred`.
+- **Worker Cooperativo e Máquina de Estados Anti-KP ([rpc_worker.js](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/rpc_worker.js) e [jb.js](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/jb.js))**:
+  - O loop infinito foi substituído por um loop cooperativo em fatias com `setTimeout(loop, 0)` e flag `spinning`, controlado por `stopSpin()`.
+  - Implementada uma **Máquina de Estados de Workers** (`CREATED` -> `ARMED` -> `KERNEL_ACTIVE` -> `PARKED` -> `TAINTED`) com o método de proteção `safeTerminate()`. Quando uma thread tem suas estruturas de kernel (`td_proc`, `td_ucred`) manipuladas, qualquer chamada de `worker.terminate()` é bloqueada preventivamente (`WORKER-TERMINATE-GUARD`), evitando que o WebKit desmonte a thread via `pthread_cancel`/syscalls corrompidas que causariam Kernel Panic instantâneo.
 - **Supressão de Execução Fantasma**: Neutralização imediata dos sockets em `POOL` e encerramento limpo via `return;` após `allDone = true`, eliminando o fallthrough redundante para `multiFire`.
-- **Fechamento Blindado de Sockets no `finally`**: Cada descritor do array `opened` é fechado com tratamento de erro individual `try / catch`, assegurando que uma falha isolada não interrompa o fechamento dos demais.
+- **Ledger Idempotente de Recursos (`ResourceLedger`)**:
+  - Substituição de arrays primitivos de descritores pela classe `ResourceLedger`, que registra a origem e o tipo de cada descritor (`ipv6-probe`, `socketpair`, `ipv6-pool`, `kern-file-probe`).
+  - Prevenção ativa de *double-close* e isolamento de falhas individuais no `finally`, garantindo que tabelas de descritores de rede e sockets IPv6 sejam liberadas sem corromper a tabela `filedesc` do sistema.
 
 ---
 
 ### 3. Higiene de Memória do WebKit & Watchdog de Heap
 
-- **Limpeza Ativa entre Tentativas ([core.js](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/core.js))**: Implementada a rotina `releaseAttemptAllocations()` para limpar referências a arrays de spray e introduzido um intervalo mínimo de 750ms entre tentativas para que a coleta de lixo (GC) do JavaScriptCore atue, prevenindo erros `CE-34878-0` (Out-of-Memory).
-- **Watchdog de Recuperação de Heap ([jb.html](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/jb.html))**: Quando o WebKit atinge o teto de tentativas (`attempt-ceiling`), o watchdog reinicia a página automaticamente (limite de 2 reloads a cada 10 minutos via `sessionStorage`), renovando o espaço de endereçamento sem exigir intervenção manual do usuário.
+- **Limpeza Ativa entre Tentativas ([core.js](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/core.js))**: Implementada a rotina `releaseAttemptAllocations()` para limpar referências a arrays de spray e introduzido um intervalo mínimo de 750ms entre tentativas para que a coleta de lixo (GC) do JavaScriptCore atue, prevenindo erros `CE-34878-0` (Out-of-Memory). O garbage collection é tratado rigorosamente como otimização de heap de userland, nunca como mecanismo de segurança ou restauração de ring-0.
+- **Watchdog de Recuperação de Heap ([jb.html](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/jb.html))**: Quando o WebKit atinge o teto de tentativas (`attempt-ceiling`), o watchdog reinicia a página automaticamente (limite de 2 reloads a cada 10 minutos via `sessionStorage`), renovando o espaço de endereçamento sem exigir intervenção manual do usuário. Essa estratégia de *hard reload* é executada estritamente antes de qualquer escrita no kernel.
 
 ---
 
-### 4. Blindagem Contra Reexecução Acidental
+### 4. Validação Prévia de Offsets & Alinhamento de Memória
+
+- **Checagem Pré-Vôo Estrutural ([ps4_offsets.js](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/ps4_offsets.js))**: A função `validateOffsets()` inspeciona a presença de todas as chaves obrigatórias (`REQUIRED_KEYS` e `NEED_K`) e valida o **alinhamento obrigatório de 8 bytes** para ponteiros e símbolos de kernel (`k_prison0`, `k_rootvnode`, `k_sysent`, `k_oid_*`). Se qualquer desalinhamento ou chave ausente for detectada, a execução é abortada no primeiro instante (`stage=pre_primitive`), impedindo dereferências nulas ou instrução ilegal no hardware.
+
+---
+
+### 5. Blindagem Contra Reexecução Acidental & Autonomia do Payload
 
 - Em [jb.js](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/jb.js), foi inserida uma checagem preventiva no início da cadeia do kernel (`uid === 0 || setuid(0) === 0`). Se o console já estiver desbloqueado, a execução é abortada imediatamente com a mensagem `"ALREADY JAILBROKEN"`, evitando concorrência destrutiva na tabela de processos do kernel.
+- O payload nativo (`payload2.bin`) é inicializado como thread desacoplada via `pthread_create` com uma janela de acomodação de 600ms, tornando-o completamente autônomo e independente do ciclo de vida ou recarregamento da interface web.
 
 ---
 

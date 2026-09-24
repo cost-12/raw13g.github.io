@@ -651,3 +651,58 @@ export function offsetsFor(uaString) {
   const key = m[1] + "." + parseInt(m[2], 16).toString(16).padStart(2, "0");
   return { key, off: PS4[key] || null };
 }
+
+export function validateOffsets(off, fwKey) {
+  const errors = [];
+  if (!off) {
+    return { ok: false, errors: ["Tabela de offsets inexistente para o firmware"] };
+  }
+
+  // 1. Validar se todas as chaves essenciais de userland e kernel de base estão presentes
+  for (const k of REQUIRED_KEYS) {
+    if (off[k] === undefined || off[k] === null) {
+      errors.push(`Chave obrigatória ausente: ${k}`);
+    }
+  }
+
+  // 2. Se for um firmware 13.xx suportado pelo exploit de kernel, validar chaves de kernel (NEED_K)
+  if (fwKey?.startsWith("13.")) {
+    const NEED_K = [
+      "k_idt_rsvd",
+      "k_oid_kern_file",
+      "k_oid_maxfilesperproc",
+      "k_oid_maxprocperuid",
+      "k_oid_maxfiles",
+      "k_arg1_maxfilesperproc",
+      "k_arg1_maxprocperuid",
+      "k_arg1_maxfiles",
+      "k_prison0",
+      "k_rootvnode",
+    ];
+    for (const k of NEED_K) {
+      if (off[k] === undefined || off[k] === null) {
+        errors.push(`Chave crítica de kernel ausente para 13.x: ${k}`);
+      }
+    }
+  }
+
+  // 3. Checagem de sanidade e alinhamento de 8 bytes para ponteiros e estruturas do kernel
+  const K_ALIGN_8 = [
+    "k_prison0",
+    "k_rootvnode",
+    "k_sysent",
+    "k_sysent_661",
+    "k_oid_kern_file",
+    "k_oid_maxfilesperproc",
+    "k_oid_maxprocperuid",
+    "k_oid_maxfiles",
+  ];
+  for (const k of K_ALIGN_8) {
+    if (typeof off[k] === "number" && (off[k] % 8 !== 0)) {
+      errors.push(`Desalinhamento detectado: ${k} (0x${off[k].toString(16)}) não é múltiplo de 8 bytes`);
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
