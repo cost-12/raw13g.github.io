@@ -658,7 +658,7 @@ PS4["14.00"] = Object.assign({}, PS4["13.04"], {
   fw_status:
     "state=OFFSETS-OFFICIAL-Al-Azif shares=13.04 " +
     "kernel_rvas=MEASURED-Scene-Collective-commit-d077fb4 " +
-    "kpatch=1400.bin-AIO-BUILT-632B-10-sites " +
+    "kpatch=1400.bin-314B-10-sites-clean " +
     "payload=payload2.bin-PS4HEN bug=663",
 });
 
