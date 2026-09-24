@@ -1,0 +1,52 @@
+/* Google Material Icons - Self-hosted for 100% Offline PS4 Compatibility
+   Source: https://fonts.google.com/icons
+*/
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../fonts/material-icons.woff2') format('woff2'),
+       url('../fonts/material-icons.ttf') format('truetype');
+}
+
+.material-icons,
+.mi {
+  font-family: 'Material Icons', sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  vertical-align: middle;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Size modifiers */
+.mi-sm { font-size: 16px; }
+.mi-md { font-size: 20px; }
+.mi-lg { font-size: 24px; }
+.mi-xl { font-size: 32px; }
+
+/* Color modifiers */
+.mi-gold { color: var(--gold, #f59e0b); }
+.mi-cyan { color: var(--accent, #00d2ff); }
+.mi-green { color: var(--ok, #10b981); }
+.mi-red { color: var(--bad, #ef4444); }
+.mi-warn { color: var(--warn, #f59e0b); }
+
+/* Animation modifier */
+.mi-spin {
+  animation: mi-spin-anim 1.2s infinite linear;
+}
+
+@keyframes mi-spin-anim {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

@@ -4,253 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>RAW GAME - Execução do Exploit</title>
-  <style>
-    :root {
-      --bg-dark: #080b10;
-      --bg-card: #101622;
-      --bg-active: #152238;
-      --border: #1e2a3c;
-      --border-glow: #00d2ff;
-      --text-main: #f0f4f8;
-      --text-muted: #8b99aa;
-      --accent: #00d2ff;
-      --accent-glow: rgba(0, 210, 255, 0.4);
-      --ok: #10b981;
-      --ok-glow: rgba(16, 185, 129, 0.35);
-      --warn: #f59e0b;
-      --bad: #ef4444;
-    }
-    * { box-sizing: border-box; }
-    html, body {
-      margin: 0; padding: 0; min-height: 100vh;
-      background: radial-gradient(circle at 50% 0%, #151f30 0%, #080b10 75%);
-      color: var(--text-main);
-      font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    }
-
-    /* Top Bar */
-    #topBar {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 20px; background: rgba(12, 17, 26, 0.9);
-      border-bottom: 1px solid var(--border);
-      -webkit-backdrop-filter: blur(8px);
-      backdrop-filter: blur(8px);
-    }
-    .brand-left { display: flex; align-items: center; gap: 10px; }
-    .brand-left img { width: 30px; height: 30px; border-radius: 50%; box-shadow: 0 0 10px rgba(0,210,255,0.4); }
-    .brand-left b { font-size: 15px; font-weight: 800; letter-spacing: 0.12em; color: #fff; }
-    .brand-pill { font-size: 11px; padding: 2px 7px; border-radius: 10px; background: #1c2738; color: var(--accent); font-weight: 700; }
-
-    /* Live Elapsed Timer Badge */
-    #timerBadge {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 14px; background: #141d2a; border: 1px solid rgba(0, 210, 255, 0.3);
-      border-radius: 20px; font-size: 13px; font-weight: 700; color: #fff;
-      box-shadow: 0 0 14px rgba(0, 210, 255, 0.15);
-    }
-    .pulse-dot {
-      width: 9px; height: 9px; border-radius: 50%; background: var(--ok);
-      box-shadow: 0 0 8px var(--ok);
-      animation: pulse-glow 1.2s infinite ease-in-out;
-    }
-    @keyframes pulse-glow {
-      0% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 4px var(--ok); }
-      50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px var(--ok); }
-      100% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 4px var(--ok); }
-    }
-    .pulse-dot.stopped { animation: none; background: #8b99aa; box-shadow: none; }
-    .pulse-dot.error { animation: none; background: var(--bad); box-shadow: 0 0 10px var(--bad); }
-
-    #mainWrap {
-      max-width: 960px; margin: 16px auto; padding: 0 16px;
-      display: flex; flex-direction: column; gap: 14px;
-    }
-
-    /* 4-Step Tracker / Stepper */
-    #stepTracker {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
-    }
-    .step-card {
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 10px;
-      transition: all 0.25s ease;
-    }
-    .step-card.active {
-      background: var(--bg-active); border-color: var(--accent);
-      box-shadow: 0 0 16px var(--accent-glow);
-    }
-    .step-card.done {
-      border-color: rgba(16, 185, 129, 0.5);
-    }
-    .step-badge {
-      width: 26px; height: 26px; border-radius: 50%; background: #1c2738;
-      color: var(--text-muted); font-size: 12px; font-weight: 800;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    }
-    .step-card.active .step-badge {
-      background: var(--accent); color: #080b10; box-shadow: 0 0 10px var(--accent);
-    }
-    .step-card.done .step-badge {
-      background: var(--ok); color: #fff; box-shadow: 0 0 8px var(--ok);
-    }
-    .step-info { min-width: 0; }
-    .step-info b { display: block; font-size: 12px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .step-info span { font-size: 10px; color: var(--text-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .step-card.active .step-info b { color: var(--accent); }
-
-    /* Progress Bar */
-    #progressContainer {
-      width: 100%; height: 8px; background: #121924; border-radius: 5px;
-      overflow: hidden; border: 1px solid var(--border);
-    }
-    #progressBar {
-      width: 15%; height: 100%; background: linear-gradient(90deg, #00d2ff 0%, #10b981 100%);
-      transition: width 0.35s ease-in-out; box-shadow: 0 0 12px rgba(0, 210, 255, 0.4);
-    }
-
-    /* State Headline Card */
-    #stateCard {
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 10px; padding: 14px 18px;
-    }
-    #state {
-      font-size: 20px; font-weight: 800; margin: 0 0 4px; color: #fff;
-      display: flex; align-items: center; gap: 8px;
-    }
-    #state.ok { color: var(--ok); }
-    #state.warn { color: var(--warn); }
-    #state.bad { color: var(--bad); }
-
-    #substate {
-      font-size: 13px; color: var(--text-muted); margin: 0;
-    }
-
-    #executionReset {
-      display: none; margin-top: 12px; padding: 10px 14px;
-      border: 1px solid rgba(245, 158, 11, 0.55); border-radius: 7px;
-      background: rgba(245, 158, 11, 0.1); color: #ffd58a;
-      text-decoration: none; font-weight: 700; cursor: pointer;
-      outline: none; transition: all 0.2s ease;
-    }
-    #executionReset:hover, #executionReset:focus {
-      background: rgba(245, 158, 11, 0.25);
-      border-color: #fbbf24;
-      box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
-    }
-
-    /* PS Button Exit Prompt Badge */
-    .ps-exit-prompt {
-      margin-top: 14px;
-      display: inline-flex;
-      align-items: center;
-      gap: 14px;
-      padding: 12px 18px;
-      background: linear-gradient(90deg, rgba(16, 185, 129, 0.18) 0%, rgba(6, 182, 212, 0.15) 100%);
-      border: 1px solid rgba(16, 185, 129, 0.6);
-      border-radius: 9px;
-      color: #ecfdf5;
-      animation: psGlow 2.5s infinite ease-in-out;
-    }
-    @keyframes psGlow {
-      0%, 100% {
-        box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
-        border-color: rgba(16, 185, 129, 0.6);
-      }
-      50% {
-        box-shadow: 0 0 24px rgba(16, 185, 129, 0.7);
-        border-color: rgba(52, 211, 153, 0.95);
-      }
-    }
-    .ps-btn-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: #0f172a;
-      border: 2px solid #38bdf8;
-      color: #38bdf8;
-      font-size: 14px;
-      font-weight: 900;
-      letter-spacing: -0.5px;
-      box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
-      flex-shrink: 0;
-    }
-    .ps-prompt-text {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      text-align: left;
-    }
-    .ps-prompt-text b {
-      color: #34d399;
-      font-size: 14px;
-      letter-spacing: 0.5px;
-    }
-    .ps-prompt-text span {
-      color: #e2e8f0;
-      font-size: 13px;
-    }
-
-    /* Monospace Terminal */
-    #out {
-      white-space: pre-wrap; font: 12px/1.4 Consolas, "Courier New", monospace;
-      background: #090d14; border: 1px solid var(--border);
-      border-radius: 10px; padding: 12px 14px;
-      height: calc(100vh - 290px); min-height: 250px;
-      overflow-y: auto; color: #b6c2d1;
-      box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
-    }
-    #out::-webkit-scrollbar { width: 8px; }
-    #out::-webkit-scrollbar-track { background: #0c121c; }
-    #out::-webkit-scrollbar-thumb { background: #1e2c3e; border-radius: 4px; }
-    #out::-webkit-scrollbar-thumb:hover { background: #2b3e58; }
-
-    /* Syntax Highlighting */
-    .ok { color: #10b981; font-weight: 600; }
-    .bad { color: #ef4444; font-weight: 600; }
-    .warn { color: #f59e0b; font-weight: 600; }
-    .safe { color: #10b981; }
-    .danger { color: #ef4444; }
-
-    /* Legacy minimal mode fallback (if ?log=0) */
-    body:not(.log) #stepTracker,
-    body:not(.log) #progressContainer,
-    body:not(.log) #stateCard,
-    body:not(.log) #out {
-      display: none;
-    }
-    #spin {
-      position: fixed; top: 50%; left: 50%;
-      width: 50px; height: 50px; margin: -25px 0 0 -25px;
-      border: 4px solid #1e2732; border-top-color: var(--accent);
-      border-radius: 50%; animation: spin 0.9s linear infinite;
-      display: none;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    body:not(.log) #spin { display: block; }
-    body.done #spin, body.fail #spin { display: none; }
-    #msg {
-      position: fixed; top: 50%; left: 0; right: 0;
-      transform: translateY(-50%); text-align: center;
-      font-size: 18px; font-weight: 700; display: none;
-    }
-    body.fail #msg { display: block; color: var(--bad); }
-
-    @media (max-width: 768px) {
-      #stepTracker { grid-template-columns: repeat(2, 1fr); }
-      #out { height: calc(100vh - 350px); }
-    }
-  </style>
+  <link rel="stylesheet" href="includes/css/material-icons.css">
+  <link rel="stylesheet" href="includes/css/jb.css">
 </head>
 <body class="log">
 
   <div id="topBar">
     <div class="brand-left">
-      <img src="logo_raw.png" alt="RAW GAME Logo" width="30" height="30">
+      <img src="includes/img/logo_raw.png" alt="RAW GAME Logo" width="30" height="30">
       <b>RAW GAME</b>
-      <span class="brand-pill">PS4 13.52</span>
+      <span id="brandPill" class="brand-pill">PS4 JAILBREAK</span>
     </div>
 
     <!-- Live Timer Pill -->
@@ -289,8 +52,8 @@
       <div id="stepCard4" class="step-card">
         <div id="stepBadge4" class="step-badge">4</div>
         <div class="step-info">
-          <b>Jailbreak &amp; Payload</b>
-          <span>Root &amp; PS4HEN Active</span>
+          <b id="step4Title">Jailbreak &amp; Payload</b>
+          <span id="step4Desc">Root &amp; Payload Active</span>
         </div>
       </div>
     </div>
@@ -304,11 +67,11 @@
     <div id="stateCard">
       <div id="state" class="warn">Iniciando ambiente do exploit...</div>
       <div id="substate">Preparando workers, verificando offsets e estabilizando o layout de heap...</div>
-      <div id="psExitPrompt" class="ps-exit-prompt" style="display:none;">
+      <div id="psExitPrompt" class="ps-exit-prompt is-hidden">
         <span class="ps-btn-badge">PS</span>
         <div class="ps-prompt-text">
-          <b>PS4HEN CARREGADO COM SUCESSO!</b>
-          <span>Não é necessário pressionar o <b>Botão PS</b> no controle para voltar ao menu principal do PS4, o console será reiniciado automaticamente em instantes.</span>
+          <b id="psExitTitle">JAILBREAK CARREGADO COM SUCESSO!</b>
+          <span id="psExitDesc">Não é necessário pressionar o <b>Botão PS</b> no controle para voltar ao menu principal do PS4, a interface será reiniciada automaticamente em instantes.</span>
         </div>
       </div>
       <a id="executionReset" href="?reset-lock=1">Console reiniciado? Liberar e executar novamente</a>
@@ -333,6 +96,21 @@
       var timerLabel = document.getElementById("timerLabel");
       var progressBar = document.getElementById("progressBar");
       var executionReset = document.getElementById("executionReset");
+      var brandPill = document.getElementById("brandPill");
+      var step4Title = document.getElementById("step4Title");
+      var psExitTitle = document.getElementById("psExitTitle");
+
+      var params = new URLSearchParams(location.search);
+      var flavor = params.get("flavor") || sessionStorage.getItem("payload_flavor") || localStorage.getItem("jailbreakFlavor") || "Jailbreak";
+      if (brandPill) {
+        brandPill.textContent = "PS4 " + flavor.toUpperCase();
+      }
+      if (step4Title) {
+        step4Title.textContent = flavor + " & Payload";
+      }
+      if (psExitTitle) {
+        psExitTitle.innerHTML = '<span class="material-icons mi-green">check_circle</span> ' + flavor.toUpperCase() + " CARREGADO COM SUCESSO!";
+      }
 
       var startTime = Date.now();
       var timerRunning = true;
@@ -384,11 +162,11 @@
 
           if (i < stepNumber) {
             card.className = "step-card done";
-            badge.textContent = "✓";
+            badge.innerHTML = '<span class="material-icons mi-sm">check</span>';
           } else if (i === stepNumber) {
             if (statusClass === "ok" && stepNumber === 4) {
               card.className = "step-card done";
-              badge.textContent = "✓";
+              badge.innerHTML = '<span class="material-icons mi-sm">check</span>';
             } else {
               card.className = "step-card active";
               badge.textContent = String(i);
@@ -416,10 +194,13 @@
 
         if (stepNumber === 4 && statusClass === "ok") {
           var psPrompt = document.getElementById("psExitPrompt");
-          if (psPrompt) psPrompt.style.display = "inline-flex";
+          if (psPrompt) {
+            psPrompt.classList.remove("is-hidden");
+            psPrompt.style.display = "inline-flex";
+          }
           var card4Span = document.querySelector("#stepCard4 .step-info span");
           if (card4Span) {
-            card4Span.textContent = "✓ Ativo! Pressione o Botão PS";
+            card4Span.innerHTML = '<span class="material-icons mi-sm mi-green">check_circle</span> Ativo! Concluído';
             card4Span.style.color = "#10b981";
             card4Span.style.fontWeight = "bold";
           }
@@ -473,9 +254,11 @@
     })();
   </script>
 
-  <!-- Load Exploit Module -->
+  <script src="includes/js/legacy-polyfills.js"></script>
+
+  <!-- Load Exploit Module from includes/js/ -->
   <script type="module">
-    import "./jb.js?v=10";
+    import "./includes/js/jb.js?v=11";
   </script>
 
   <!-- Heap Watchdog (PSPULSE) -->

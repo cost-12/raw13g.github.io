@@ -384,7 +384,20 @@ const WORKER_STATE = {
 
     const KPATCH_FILE =
       "patches/" + (off.kpatch || fwKey.replace(".", "") + ".bin");
-    const PAYLOAD_FILE = off.payload || "payload.bin";
+    
+    // Dynamic payload selection based on user preference (GoldHEN vs HEN)
+    const explicitPayload = params.get("payload_path") || sessionStorage.getItem("payload_path");
+    const userFlavor = params.get("flavor") || localStorage.getItem("jailbreakFlavor") || "GoldHEN";
+    let chosenPayload = "includes/payloads/HEN/payload2.bin";
+    if (explicitPayload) {
+      chosenPayload = explicitPayload;
+    } else if (userFlavor === "GoldHEN" && off.payload_goldhen) {
+      chosenPayload = off.payload_goldhen;
+    } else {
+      chosenPayload = off.payload_hen || off.payload || "includes/payloads/HEN/payload2.bin";
+    }
+    const PAYLOAD_FILE = chosenPayload;
+    const effectiveFlavor = chosenPayload.toLowerCase().includes("goldhen") ? "GoldHEN" : "PS4HEN";
     const needPatch = ["k_sysent_661", "k_jmp_rsi"].filter(
       (k) => off[k] === undefined,
     );
@@ -752,7 +765,7 @@ const WORKER_STATE = {
         alreadyRoot = true;
         mark("ALREADY-ROOT", "getuid=" + uid0 + " setuid(0)=" + su0);
         state("ALREADY JAILBROKEN -- nothing to do", "ok");
-        setStageUI(4, "CONSOLE JÁ DESBLOQUEADO (ROOT ATIVO)", "O PS4HEN já está ativo na memória! O console será reiniciado em alguns segundos.", "ok");
+        setStageUI(4, "CONSOLE JÁ DESBLOQUEADO (ROOT ATIVO)", "O " + effectiveFlavor + " já está ativo na memória! O console será reiniciado em alguns segundos.", "ok");
         finishUI(true);
         try {
           sessionStorage.setItem("jb_session_state", "completed");
@@ -843,7 +856,14 @@ const WORKER_STATE = {
         state: WORKER_STATE.CREATED,
         tainted: false,
       };
-      w.worker = new Worker("rpc_worker.js");
+      const workerUrl = (function() {
+        try {
+          return new URL("rpc_worker.js", import.meta.url).href;
+        } catch (e) {
+          return "includes/js/rpc_worker.js";
+        }
+      })();
+      w.worker = new Worker(workerUrl);
       w.rpc = makeRpc(w.worker, name);
       w.safeTerminate = function () {
         if (
@@ -3376,7 +3396,7 @@ const WORKER_STATE = {
                     "rc=" + rc + " handle=" + handle,
                   );
                   if (plDone) {
-                    setStageUI(4, "🎉 JAILBREAK CONCLUÍDO — PS4HEN ATIVO", "Privilégios root concedidos e PS4HEN em execução! O console vai reiniciar em alguns segundos.", "ok");
+                    setStageUI(4, "JAILBREAK CONCLUÍDO — " + effectiveFlavor.toUpperCase() + " ATIVO", "Privilégios root concedidos e " + effectiveFlavor + " em execução! O console vai reiniciar em alguns segundos.", "ok");
                     try {
                       sessionStorage.setItem("jb_session_state", "completed");
                     } catch (e) {}

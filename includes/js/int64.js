@@ -1,3 +1,8 @@
+// Source lineage: Bel's OnePS / OOMfie implementation.
+// Original repositories: https://github.com/thebelx/OnePS and https://github.com/thebelx/oomfietest
+// Historical reference: oomfietest commit 3d7955d7b85982d5f6160adf9ba6cd56278fc300.
+// Subsequent modifications by the Raw13G authors.
+
 function zeroFill(number, width) {
   width -= number.toString().length;
 

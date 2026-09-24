@@ -3,217 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RAW GAME - PS4 Jailbreak Host</title>
-<style>
-  :root {
-    --bg-dark: #090c10;
-    --bg-card: #121822;
-    --bg-card-hover: #17202e;
-    --border: #1f2b3c;
-    --border-active: #00d2ff;
-    --text-main: #f0f4f8;
-    --text-muted: #8c9ba8;
-    --accent: #00d2ff;
-    --accent-glow: rgba(0, 210, 255, 0.35);
-    --ok: #10b981;
-    --ok-glow: rgba(16, 185, 129, 0.25);
-    --warn: #f59e0b;
-    --bad: #ef4444;
-  }
-  * { box-sizing: border-box; }
-  html, body {
-    margin: 0; padding: 0; min-height: 100vh;
-    background: radial-gradient(circle at 50% -10%, #172338 0%, #090c10 70%);
-    color: var(--text-main);
-    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    -webkit-user-select: none;
-    user-select: none;
-  }
-  #brand {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 24px; background: rgba(14, 20, 30, 0.85);
-    border-bottom: 1px solid var(--border);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-  }
-  .brand-left { display: flex; align-items: center; gap: 10px; }
-  .brand-left img { width: 32px; height: 32px; border-radius: 50%; box-shadow: 0 0 10px rgba(0,210,255,0.4); }
-  .brand-left b { font-size: 16px; font-weight: 800; letter-spacing: 0.12em; color: #fff; }
-  .brand-tag { font-size: 11px; padding: 3px 8px; border-radius: 12px; background: #1c2738; color: var(--accent); font-weight: 600; }
-
-  #headerBadges { display: flex; align-items: center; gap: 8px; }
-  .badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 12px; font-weight: 600; padding: 4px 10px;
-    border-radius: 20px; background: #151e2b; border: 1px solid var(--border);
-  }
-  .badge .dot {
-    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
-  }
-  .dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
-  .dot.warn { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
-  .dot.bad { background: var(--bad); box-shadow: 0 0 8px var(--bad); }
-
-  #container {
-    max-width: 780px; margin: 24px auto; padding: 0 18px;
-    display: flex; flex-direction: column; gap: 20px;
-  }
-
-  .card {
-    background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: 14px; padding: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.35);
-  }
-
-  .card-title {
-    font-size: 14px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 14px;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-
-  /* Pre-flight checklist grid */
-  .grid-checks {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;
-  }
-  .check-item {
-    background: rgba(10, 15, 22, 0.6); border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 10px; padding: 12px 14px; display: flex; align-items: flex-start; gap: 12px;
-  }
-  .check-icon {
-    width: 22px; height: 22px; border-radius: 6px; background: var(--ok-glow);
-    color: var(--ok); font-weight: 800; font-size: 13px;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .check-content b { display: block; font-size: 13px; color: #fff; margin-bottom: 2px; }
-  .check-content span { font-size: 11px; color: var(--text-muted); line-height: 1.3; }
-
-  /* Launch Hero Card */
-  .launch-card {
-    text-align: center; padding: 30px 24px; position: relative;
-    border: 1px solid rgba(0, 210, 255, 0.25);
-    background: linear-gradient(180deg, #16202f 0%, #101622 100%);
-    box-shadow: 0 10px 30px rgba(0, 210, 255, 0.08);
-  }
-  .launch-headline {
-    font-size: 24px; font-weight: 800; margin: 0 0 8px; color: #fff;
-    letter-spacing: -0.01em;
-  }
-  .launch-sub {
-    font-size: 13px; color: var(--text-muted); margin: 0 0 24px;
-  }
-
-  /* Action Button */
-  #startBtn {
-    background: linear-gradient(135deg, #00b4db 0%, #0083b0 100%);
-    color: #fff; border: 2px solid #38d9ff; border-radius: 12px;
-    padding: 16px 36px; font-size: 17px; font-weight: 800;
-    letter-spacing: 0.06em; cursor: pointer; display: inline-flex;
-    align-items: center; justify-content: center; gap: 10px;
-    box-shadow: 0 6px 20px var(--accent-glow);
-    transition: all 0.2s ease-in-out; outline: none; width: 100%; max-width: 420px;
-  }
-  #startBtn:hover {
-    transform: translateY(-2px);
-    background: linear-gradient(135deg, #00c6ed 0%, #0096c7 100%);
-    box-shadow: 0 8px 28px rgba(0, 210, 255, 0.55);
-    border-color: #fff;
-  }
-  #startBtn:focus, #startBtn:focus-visible {
-    transform: translateY(-2px);
-    background: linear-gradient(135deg, #00c6ed 0%, #0096c7 100%);
-    box-shadow: 0 0 0 3px var(--bg-dark), 0 0 0 6px var(--accent), 0 8px 32px rgba(0, 210, 255, 0.7);
-    border-color: #fff;
-    outline: none;
-  }
-  .btn-secondary:focus, .btn-secondary:focus-visible {
-    box-shadow: 0 0 0 2px var(--bg-dark), 0 0 0 4px var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-    outline: none;
-  }
-  #startBtn:active { transform: translateY(1px); }
-
-  /* Session Status Card */
-  .session-banner {
-    border-radius: 12px; padding: 14px 18px; margin-bottom: 18px; text-align: left;
-    display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.45;
-  }
-  .session-banner.success {
-    background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.4);
-    box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
-  }
-  .session-banner.warn {
-    background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4);
-    box-shadow: 0 0 16px rgba(245, 158, 11, 0.15);
-  }
-  .session-banner.bad {
-    background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4);
-    box-shadow: 0 0 16px rgba(239, 68, 68, 0.2);
-  }
-  .session-banner-title {
-    font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 8px;
-  }
-  .session-banner.success .session-banner-title { color: #10b981; }
-  .session-banner.warn .session-banner-title { color: #f59e0b; }
-  .session-banner.bad .session-banner-title { color: #ef4444; }
-  .session-banner-body { color: #d0d8e2; font-size: 13px; line-height: 1.5; }
-  .session-banner-body b { color: #fff; }
-  .is-hidden { display: none !important; }
-
-  .launch-actions {
-    display: flex; justify-content: center; gap: 12px; margin-top: 14px;
-  }
-  .btn-secondary {
-    background: transparent; border: 1px solid var(--border); color: var(--text-muted);
-    font-size: 11px; font-weight: 600; padding: 6px 14px; border-radius: 8px;
-    cursor: pointer; transition: all 0.15s ease;
-  }
-  .btn-secondary:hover { color: #fff; border-color: var(--accent); }
-
-  /* Cache Status Footer */
-  #cacheBar {
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: 12px; color: var(--text-muted); padding: 10px 16px;
-    background: rgba(14, 20, 30, 0.5); border-radius: 8px; border: 1px solid var(--border);
-  }
-  #cacheText.ok { color: var(--ok); font-weight: 600; }
-  #cacheText.warn { color: var(--warn); }
-  #cacheText.bad { color: var(--bad); }
-
-  .kb-hint {
-    font-size: 11px; color: #58697c; text-align: center; margin-top: 10px;
-  }
-  .kb-pill {
-    background: #1e2a3a; padding: 2px 6px; border-radius: 4px; color: #d0d8e2; font-weight: 700;
-  }
-
-  /* Stability & Memory Tips */
-  .tips-card {
-    margin-top: 14px; background: rgba(16, 22, 34, 0.65);
-  }
-  .tips-title {
-    margin-bottom: 8px;
-  }
-  .tips-body {
-    font-size: 12px; color: var(--text-muted); line-height: 1.6;
-  }
-  .tips-item {
-    margin-bottom: 6px;
-  }
-  .tips-item b {
-    color: var(--text-main);
-  }
-  .tips-kbd {
-    background: #1e2a3c; padding: 2px 6px; border-radius: 4px; font-size: 11px; color: #fff;
-  }
-</style>
+<title>RAW GAME - PS4 Jailbreak Host (11.00 - 14.00)</title>
+<link rel="stylesheet" href="includes/css/material-icons.css">
+<link rel="stylesheet" href="includes/css/style.css">
 </head>
 <body>
 
 <div id="brand">
   <div class="brand-left">
-    <img src="logo_raw.png" alt="RAW GAME Logo" width="32" height="32">
+    <img src="includes/img/logo_raw.png" alt="RAW GAME Logo" width="32" height="32">
     <b>RAW GAME</b>
-    <span class="brand-tag">v4.0 UI</span>
+    <span class="brand-tag">v5.0 Multi-FW</span>
   </div>
   <div id="headerBadges">
     <div id="fwBadge" class="badge">
@@ -222,7 +22,7 @@
     </div>
     <div id="cacheBadge" class="badge">
       <span id="cacheDot" class="dot ok"></span>
-      <span id="cacheBadgeText">CACHE OK</span>
+      <span id="cacheBadgeText">CACHE VERIFICANDO...</span>
     </div>
   </div>
 </div>
@@ -231,18 +31,69 @@
 
   <!-- Launch Hero Card -->
   <div class="card launch-card">
-    <div class="launch-headline">PS4 JAILBREAK 13.02 &ndash; 13.52</div>
+    <div class="launch-headline">PS4 JAILBREAK 11.00 &ndash; 14.00</div>
     <div class="launch-sub" id="det">Identificando console e checando compatibilidade de kernel...</div>
 
-      <!-- Session Status Card (Managed via sessionStorage) -->
+    <!-- Payload Selection: GoldHEN vs HEN -->
+    <div class="card-title card-title-payload">
+      <span>SELECIONE O PAYLOAD DO JAILBREAK:</span>
+    </div>
+
+    <div class="payload-grid" id="payloadSelectorGrid">
+      <!-- GoldHEN Option -->
+      <button type="button" id="optGoldHEN" class="payload-choice gold selected">
+        <span class="payload-header">
+          <span class="payload-title">
+            <span class="icon"><span class="material-icons mi-gold">workspace_premium</span></span>
+            <span>GoldHEN</span>
+          </span>
+          <span class="payload-badge badge-gold" id="ghStatusBadge">Recomendado (11.00 - 13.00)</span>
+        </span>
+        <span class="payload-desc">
+          Ambiente completo com Debug Settings, Cheat Engine, suporte a plugins, FTP integrado e gerenciador de pacotes avançado.
+        </span>
+      </button>
+
+      <!-- PS4HEN Option -->
+      <button type="button" id="optHEN" class="payload-choice">
+        <span class="payload-header">
+          <span class="payload-title">
+            <span class="icon"><span class="material-icons mi-cyan">bolt</span></span>
+            <span>PS4HEN</span>
+          </span>
+          <span class="payload-badge badge-blue" id="henStatusBadge">Nativo 11.00 - 14.00</span>
+        </span>
+        <span class="payload-desc">
+          Homebrew Enabler puro de alta estabilidade e baixo consumo de memória. Execução nativa ideal para firmwares 13.02, 13.04, 13.50, 13.52 e 14.00.
+        </span>
+      </button>
+    </div>
+
+    <!-- GoldHEN Version Selector -->
+    <div id="goldhenVersionsCard" class="goldhen-versions-card">
+      <label for="ghVersionSelect"><b>Versão do GoldHEN:</b></label>
+      <select id="ghVersionSelect">
+        <option value="GHv2.4b18.12" selected>GoldHEN v2.4b18.12 (Mais Recente)</option>
+        <option value="GHv2.4b18.10">GoldHEN v2.4b18.10</option>
+        <option value="GHv2.4b18.9">GoldHEN v2.4b18.9</option>
+        <option value="GHv2.4b18.8">GoldHEN v2.4b18.8</option>
+        <option value="GHv2.4b18.7">GoldHEN v2.4b18.7</option>
+        <option value="GHv2.4b18.6">GoldHEN v2.4b18.6</option>
+      </select>
+    </div>
+
+    <!-- Active Payload Notification -->
+    <div id="payloadInfoBanner" class="session-banner is-hidden"></div>
+
+    <!-- Session Status Card (Managed via sessionStorage) -->
     <div id="sessionBanner" class="is-hidden"></div>
 
     <button id="startBtn" type="button" tabindex="0" autofocus>
-      <span>▶</span> INICIAR JAILBREAK [X / Toque]
+      <span class="material-icons">play_arrow</span> INICIAR JAILBREAK [X / Toque]
     </button>
     <div class="launch-actions">
-      <button id="reloadBtn" type="button" class="btn-secondary">⟳ Recarregar Página</button>
-      <button id="clearSessionBtn" type="button" class="btn-secondary is-hidden">↺ Limpar Sessão</button>
+      <button id="reloadBtn" type="button" class="btn-secondary" tabindex="0"><span class="material-icons mi-sm">refresh</span> Recarregar Página</button>
+      <button id="clearSessionBtn" type="button" class="btn-secondary is-hidden" tabindex="0"><span class="material-icons mi-sm">restart_alt</span> Limpar Sessão</button>
     </div>
 
     <div class="kb-hint">
@@ -258,30 +109,30 @@
     </div>
     <div class="grid-checks">
       <div class="check-item">
-        <div class="check-icon">✓</div>
+        <div class="check-icon"><span class="material-icons mi-sm">check</span></div>
         <div class="check-content">
           <b>WebKit Primitives</b>
           <span>Heap grooming estendido e primitivas ARW de 64-bit armadas.</span>
         </div>
       </div>
       <div class="check-item">
-        <div class="check-icon">✓</div>
+        <div class="check-icon"><span class="material-icons mi-sm">check</span></div>
         <div class="check-content">
-          <b>Kernel RVAs</b>
-          <span>Tabela medida de offsets para firmwares 13.02, 13.04, 13.50 e 13.52.</span>
+          <b>Kernel RVAs Multiversão</b>
+          <span>Tabela de offsets medida para 11.00, 11.02, 11.50, 11.52, 12.00, 12.02, 12.50, 12.52, 13.00, 13.02, 13.04, 13.50, 13.52 e 14.00.</span>
         </div>
       </div>
       <div class="check-item">
-        <div class="check-icon">✓</div>
+        <div class="check-icon"><span class="material-icons mi-sm">check</span></div>
         <div class="check-content">
-          <b>PS4HEN Payload</b>
-          <span>payload2.bin preparado para injeção via pthread nativa em ring0.</span>
+          <b id="checkPayloadTitle">Payload Selecionado</b>
+          <span id="checkPayloadDesc">GoldHEN v2.4b18.12 preparado para despacho em ring0.</span>
         </div>
       </div>
       <div class="check-item">
-        <div class="check-icon">✓</div>
+        <div class="check-icon"><span class="material-icons mi-sm">check</span></div>
         <div class="check-content">
-          <b>Anti-WLOD Shield</b>
+          <b>Anti-WLOD &amp; Kernel Guard</b>
           <span>Proteção contra underflow de refcount (vnode/prison) e sem loop de worker.</span>
         </div>
       </div>
@@ -289,9 +140,9 @@
   </div>
 
   <!-- Dicas de Memória & Estabilidade -->
-  <div class="specs-card tips-card">
-    <div class="specs-title tips-title">
-      <span>💡</span>
+  <div class="card tips-card">
+    <div class="tips-title">
+      <span class="material-icons mi-gold">lightbulb</span>
       <span>Dicas para Evitar "Memória Cheia" &amp; Aumentar a Taxa de Sucesso</span>
     </div>
     <div class="tips-body">
@@ -313,275 +164,299 @@
   <!-- Cache Status Bar -->
   <div id="cacheBar">
     <div>Armazenamento Offline: <span id="cacheText" class="ok">Verificando ApplicationCache...</span></div>
-    <div id="cacheDetail" class="cache-sub">Sem conexão à internet necessária após o 1º acesso</div>
+    <div id="cacheDetail" class="cache-subtext">Sem conexão à internet necessária após o 1º acesso</div>
   </div>
 
 </div>
 
-<script>
-(function () {
-    var fwDot = document.getElementById("fwDot");
-    var fwText = document.getElementById("fwText");
-    var cacheDot = document.getElementById("cacheDot");
-    var cacheBadgeText = document.getElementById("cacheBadgeText");
-    var detEl = document.getElementById("det");
-    var cacheText = document.getElementById("cacheText");
-    var startBtn = document.getElementById("startBtn");
-    var sessionBanner = document.getElementById("sessionBanner");
-    var clearSessionBtn = document.getElementById("clearSessionBtn");
-    var reloadBtn = document.getElementById("reloadBtn");
-    var diagStatus = document.getElementById("diagStatus");
-    var SESSION_KEY = "jb_session_state";
+<!-- Scripts com Métodos Modulares -->
+<script src="includes/js/legacy-polyfills.js"></script>
+<script type="module">
+  import { detectFw } from "./includes/js/checkFw.js";
+  import { 
+    isGoldHENSupported, 
+    getJbFlavor, 
+    setJbFlavor, 
+    getGoldHENVer, 
+    setGoldHENVer, 
+    resolvePayload 
+  } from "./includes/js/HENs.js";
 
-    var params = new URLSearchParams(location.search);
-    var SUPPORTED = { 1302: 1, 1304: 1, 1350: 1, 1352: 1 };
+  (function () {
+    const fwDot = document.getElementById("fwDot");
+    const fwText = document.getElementById("fwText");
+    const cacheDot = document.getElementById("cacheDot");
+    const cacheBadgeText = document.getElementById("cacheBadgeText");
+    const detEl = document.getElementById("det");
+    const cacheText = document.getElementById("cacheText");
+    const startBtn = document.getElementById("startBtn");
+    const sessionBanner = document.getElementById("sessionBanner");
+    const clearSessionBtn = document.getElementById("clearSessionBtn");
+    const reloadBtn = document.getElementById("reloadBtn");
+    const diagStatus = document.getElementById("diagStatus");
+    const optGoldHEN = document.getElementById("optGoldHEN");
+    const optHEN = document.getElementById("optHEN");
+    const ghVersionSelect = document.getElementById("ghVersionSelect");
+    const goldhenVersionsCard = document.getElementById("goldhenVersionsCard");
+    const payloadInfoBanner = document.getElementById("payloadInfoBanner");
+    const checkPayloadTitle = document.getElementById("checkPayloadTitle");
+    const checkPayloadDesc = document.getElementById("checkPayloadDesc");
+    const ghStatusBadge = document.getElementById("ghStatusBadge");
+    const henStatusBadge = document.getElementById("henStatusBadge");
 
-    var key = null, fwnum = null;
-    var m = /PlayStation\s+4[/ ](\d+)\.(\d+)/.exec(navigator.userAgent);
-    if (m) {
-        var ms = parseInt(m[2], 16).toString(16);
-        if (ms.length < 2) ms = "0" + ms;
-        key = m[1] + "." + ms;
-        fwnum = parseInt(m[1], 10) * 100 + parseInt(ms, 10);
-    }
+    const SESSION_KEY = "jb_session_state";
 
-    var forced = params.get("force") === "1";
-    var supported = forced || (fwnum !== null && SUPPORTED[fwnum] === 1);
+    // 1. Detectar Firmware usando método robusto
+    const fwInfo = detectFw();
+    const fwKey = fwInfo.fwKey;
+    const fwSupported = fwInfo.supported;
+    const goldHenAllowed = isGoldHENSupported(fwKey);
 
-    if (supported) {
-        fwText.textContent = "FW " + (key || "13.52") + " SUPORTADO";
-        fwDot.className = "dot ok";
-        detEl.innerHTML = "Firmware <b>" + (key || "13.52") + "</b> detectado &middot; <span style='color:var(--ok); font-weight:700;'>Tabela de offsets medida e validada</span>";
+    // Ajuste da UI de Firmware
+    if (fwSupported) {
+      fwText.textContent = "FW " + fwKey + " SUPORTADO";
+      fwDot.className = "dot ok";
+      detEl.innerHTML = "Firmware <b>" + fwKey + "</b> detectado (" + (fwInfo.meta ? fwInfo.meta.exploit : "SlopKit/Relapse") + ") &middot; <span style='color:var(--ok); font-weight:700;'>Tabela de offsets medida e validada</span>";
+    } else if (fwInfo.isPs4) {
+      fwText.textContent = "FW " + (fwKey || "DESCONHECIDO");
+      fwDot.className = "dot warn";
+      diagStatus.textContent = "● FORA DA TABELA";
+      diagStatus.style.color = "var(--warn)";
+      detEl.innerHTML = "Firmware <b>" + (fwKey || "desconhecido") + "</b> não está na tabela oficial &middot; <span style='color:var(--warn);'>Toque para iniciar mesmo assim</span>";
     } else {
-        fwText.textContent = "FW " + (key || "DESCONHECIDO");
-        fwDot.className = "dot warn";
-        diagStatus.textContent = "● FORA DA TABELA";
-        diagStatus.style.color = "var(--warn)";
-        detEl.innerHTML = "Firmware <b>" + (key || "desconhecido") + "</b> não está na tabela oficial &middot; <span style='color:var(--warn);'>Toque para iniciar mesmo assim</span>";
+      fwText.textContent = fwInfo.platform.toUpperCase();
+      fwDot.className = "dot warn";
+      detEl.innerHTML = "Acessando via <b>" + fwInfo.platform + "</b> &middot; Modo de demonstração / teste de host ativado.";
     }
 
-    var target = "jb.html" + location.search;
-    if (location.search.indexOf("log=") === -1) {
-        target += (location.search ? "&" : "?") + "log=1";
+    // 2. Gerenciamento de Flavor (GoldHEN vs HEN)
+    let currentFlavor = getJbFlavor(fwKey);
+    let currentGhVer = getGoldHENVer();
+    ghVersionSelect.value = currentGhVer;
+
+    function updateFlavorUI() {
+      if (currentFlavor === "GoldHEN" && goldHenAllowed) {
+        optGoldHEN.classList.add("selected");
+        optGoldHEN.setAttribute("aria-checked", "true");
+        optHEN.classList.remove("selected");
+        optHEN.setAttribute("aria-checked", "false");
+        goldhenVersionsCard.style.display = "block";
+        payloadInfoBanner.style.display = "none";
+        checkPayloadTitle.textContent = "GoldHEN Preparado";
+        checkPayloadDesc.textContent = ghVersionSelect.options[ghVersionSelect.selectedIndex].text + " armado para injeção via pthread.";
+      } else {
+        currentFlavor = "HEN";
+        optHEN.classList.add("selected");
+        optHEN.setAttribute("aria-checked", "true");
+        optGoldHEN.classList.remove("selected");
+        optGoldHEN.setAttribute("aria-checked", "false");
+        goldhenVersionsCard.style.display = "none";
+        
+        if (fwKey && !goldHenAllowed) {
+          payloadInfoBanner.style.display = "flex";
+          payloadInfoBanner.className = "session-banner warn";
+          payloadInfoBanner.innerHTML = "<b>Nota de Compatibilidade:</b> No firmware <b>" + fwKey + "</b>, o <b>PS4HEN Nativo</b> é utilizado automaticamente para garantir estabilidade máxima e evitar Kernel Panic.";
+          ghStatusBadge.textContent = "Apenas FW <= 13.00";
+          ghStatusBadge.className = "payload-badge";
+          ghStatusBadge.style.background = "#2a1e1e";
+          ghStatusBadge.style.color = "#f87171";
+          henStatusBadge.textContent = "Recomendado para " + fwKey;
+          henStatusBadge.className = "payload-badge badge-gold";
+        } else {
+          payloadInfoBanner.style.display = "none";
+        }
+        checkPayloadTitle.textContent = "PS4HEN Preparado";
+        checkPayloadDesc.textContent = "PS4HEN nativo (payload2.bin) armado para injeção via pthread.";
+      }
     }
 
-    var launched = false;
+    optGoldHEN.addEventListener("click", () => {
+      if (!goldHenAllowed && fwKey) {
+        alert("O GoldHEN atualmente suporta firmwares até 13.00. Para o firmware " + fwKey + ", o PS4HEN Nativo é o payload suportado.");
+        return;
+      }
+      currentFlavor = setJbFlavor("GoldHEN", fwKey);
+      updateFlavorUI();
+    });
+
+    optHEN.addEventListener("click", () => {
+      currentFlavor = setJbFlavor("HEN", fwKey);
+      updateFlavorUI();
+    });
+
+    ghVersionSelect.addEventListener("change", (e) => {
+      setGoldHENVer(e.target.value);
+      updateFlavorUI();
+    });
+
+    updateFlavorUI();
+
+    // 3. Inicialização e Disparo do Exploit
+    let launched = false;
     function go() {
-        if (launched) return;
-        launched = true;
-        try {
-            sessionStorage.setItem(SESSION_KEY, "in_progress");
-        } catch (e) {}
-        startBtn.innerHTML = "<span>⏳</span> CARREGANDO JAILBREAK...";
-        startBtn.style.background = "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)";
-        startBtn.style.borderColor = "#fbbf24";
-        location.replace(target);
+      if (launched) return;
+      launched = true;
+
+      const payloadRes = resolvePayload(fwKey);
+
+      try {
+        sessionStorage.setItem(SESSION_KEY, "in_progress");
+        sessionStorage.setItem("payload_path", payloadRes.path);
+        sessionStorage.setItem("payload_flavor", payloadRes.flavor);
+      } catch (e) {
+        /* ignore storage access error if blocked */
+      }
+
+      let target = "jb.html?flavor=" + encodeURIComponent(payloadRes.flavor) + "&payload_path=" + encodeURIComponent(payloadRes.path);
+      if (location.search) {
+        const p = new URLSearchParams(location.search);
+        p.delete("flavor");
+        p.delete("payload_path");
+        const extra = p.toString();
+        if (extra) target += "&" + extra;
+      }
+      if (!target.includes("log=")) {
+        target += "&log=1";
+      }
+
+      startBtn.innerHTML = '<span class="material-icons mi-spin">sync</span> CARREGANDO JAILBREAK (' + payloadRes.flavor + ')...';
+      startBtn.style.background = "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)";
+      startBtn.style.borderColor = "#fbbf24";
+      location.replace(target);
     }
 
     function handleAction(e) {
-        if (launched) return;
-        // Do not intercept clicks or key events on secondary actions (reload / clear session)
-        if (e && e.target) {
-            var targetEl = e.target;
-            if (targetEl.id === "reloadBtn" || targetEl.id === "clearSessionBtn") return;
-            if (targetEl.closest && targetEl.closest(".btn-secondary")) return;
-        }
-        go();
+      if (launched) return;
+      if (e && e.target) {
+        const targetEl = e.target;
+        if (targetEl.id === "reloadBtn" || targetEl.id === "clearSessionBtn") return;
+        if (targetEl.closest && (targetEl.closest(".btn-secondary") || targetEl.closest(".payload-grid"))) return;
+      }
+      go();
     }
 
     startBtn.addEventListener("click", handleAction);
-    reloadBtn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        location.reload();
+    reloadBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      location.reload();
     });
 
-    // PS4 Controller & Keyboard Event Handling:
-    // In PS4 WebKit, pressing the 'X' (Cross) button triggers a 'click' event anywhere on window
-    // as well as Enter (13) / Space (32) / keyCode 0 when focused.
+    clearSessionBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      try {
+        sessionStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem("ps4-heap-watchdog-reloads");
+        localStorage.removeItem("raw13g:jb:execution-lock:v2");
+      } catch (err) {}
+      location.reload();
+    });
+
+    // Eventos de Controle DualShock 4 e Teclado
     window.addEventListener("click", handleAction);
 
-    window.addEventListener("keydown", function (e) {
-        var k = e.key || e.keyCode;
-        // Arrow navigation between buttons (D-Pad / Left Stick)
-        if (k === "ArrowDown" || k === "ArrowRight" || k === 40 || k === 39) {
-            if (document.activeElement === startBtn) {
-                if (clearSessionBtn && !clearSessionBtn.classList.contains("is-hidden")) {
-                    clearSessionBtn.focus();
-                } else if (reloadBtn) {
-                    reloadBtn.focus();
-                }
-            }
-        } else if (k === "ArrowUp" || k === "ArrowLeft" || k === 38 || k === 37) {
-            if (document.activeElement === reloadBtn || document.activeElement === clearSessionBtn) {
-                startBtn.focus();
-            }
-        } else if (k === "Enter" || k === " " || k === 13 || k === 32 || k === 88 || k === "x" || k === "X" || k === 0) {
-            handleAction(e);
+    window.addEventListener("keydown", (e) => {
+      const k = e.key || e.keyCode;
+      if (k === "ArrowDown" || k === "ArrowRight" || k === 40 || k === 39) {
+        if (document.activeElement === startBtn) {
+          if (clearSessionBtn && !clearSessionBtn.classList.contains("is-hidden")) {
+            clearSessionBtn.focus();
+          } else if (reloadBtn) {
+            reloadBtn.focus();
+          }
         }
+      } else if (k === "ArrowUp" || k === "ArrowLeft" || k === 38 || k === 37) {
+        if (document.activeElement === reloadBtn || document.activeElement === clearSessionBtn) {
+          startBtn.focus();
+        }
+      } else if (k === "Enter" || k === " " || k === 13 || k === 32 || k === 88 || k === "x" || k === "X" || k === 0) {
+        if (document.activeElement === optGoldHEN || document.activeElement === optHEN || document.activeElement === ghVersionSelect) {
+          return;
+        }
+        handleAction(e);
+      }
     });
 
-    startBtn.addEventListener("keydown", function (e) {
-        var k = e.key || e.keyCode;
-        if (k === "Enter" || k === " " || k === 13 || k === 32) {
-            e.preventDefault();
-            handleAction(e);
-        }
+    startBtn.addEventListener("keydown", (e) => {
+      const k = e.key || e.keyCode;
+      if (k === "Enter" || k === " " || k === 13 || k === 32) {
+        e.preventDefault();
+        handleAction(e);
+      }
     });
 
-    // Initial focus on startBtn (Crucial for PS4 spatial navigation / X button)
     function focusStart() {
-        try {
-            if (startBtn && typeof startBtn.focus === "function") {
-                startBtn.focus();
-            }
-        } catch (e) {}
+      try {
+        if (startBtn && typeof startBtn.focus === "function") {
+          startBtn.focus();
+        }
+      } catch (e) {}
     }
     focusStart();
     setTimeout(focusStart, 50);
     setTimeout(focusStart, 200);
     window.addEventListener("load", focusStart);
-    // Session State & Persistent Lock Notification
-    var sessionState = null;
-    try {
-        sessionState = sessionStorage.getItem(SESSION_KEY);
-    } catch (e) {
-        sessionState = null;
-    }
 
-    var persistentLock = null;
+    // 4. Session State & Lock Notification
+    let sessionState = null;
     try {
-        var rawLock = localStorage.getItem("raw13g:jb:execution-lock:v2");
-        if (rawLock) persistentLock = JSON.parse(rawLock);
+      sessionState = sessionStorage.getItem(SESSION_KEY);
     } catch (e) {
-        /* ignore storage access error if storage is restricted */
-        persistentLock = null;
-    }
-
-    // Fallback: se o navegador foi fechado/reaberto mas há lock persistente em disco
-    if (!sessionState && persistentLock && persistentLock.state) {
-        if (persistentLock.state === "completed") {
-            sessionState = "completed";
-        } else if (persistentLock.state === "kernel-dirty") {
-            sessionState = "reboot_required";
-        } else if (persistentLock.state === "running") {
-          sessionState = "in_progress";
-        }
+      sessionState = null;
     }
 
     if (sessionState === "completed") {
-        sessionBanner.className = "session-banner success";
-        sessionBanner.innerHTML =
-            '<div class="session-banner-title">' +
-            '  <span>✨</span>' +
-            '  <span>Sessão Já Ativa na Memória</span>' +
-            '</div>' +
-            '<div class="session-banner-body">' +
-            '  O jailbreak já foi concluído anteriormente e os patches permanecem ativos se o console não foi reiniciado. <b>Se o PS4 já foi desligado/reiniciado, use o botão abaixo para liberar nova execução.</b>' +
-            '</div>';
-        sessionBanner.classList.remove("is-hidden");
-        startBtn.innerHTML = "<span>✓</span> JAILBREAK JÁ ATIVO NA MEMÓRIA";
-        startBtn.style.background = "linear-gradient(135deg, #10b981 0%, #059669 100%)";
-        startBtn.style.borderColor = "#34d399";
-        if (clearSessionBtn) {
-            clearSessionBtn.textContent = "Já Reiniciei o PS4 (Liberar Execução)";
-            clearSessionBtn.classList.remove("is-hidden");
-        }
+      sessionBanner.className = "session-banner success";
+      sessionBanner.innerHTML =
+        '<div class="session-banner-title"><span class="material-icons mi-green">check_circle</span> JAILBREAK CONCLUÍDO COM SUCESSO NESTA SESSÃO</div>' +
+        '<div class="session-banner-body">' +
+        '  O jailbreak já foi concluído anteriormente e os patches permanecem ativos se o console não foi reiniciado. <b>Se o PS4 já foi desligado/reiniciado, use o botão abaixo para liberar nova execução.</b>' +
+        '</div>';
+      sessionBanner.classList.remove("is-hidden");
+      clearSessionBtn.classList.remove("is-hidden");
     } else if (sessionState === "reboot_required") {
-        sessionBanner.className = "session-banner bad";
-        sessionBanner.innerHTML =
-            '<div class="session-banner-title">' +
-            '  <span>🛑</span>' +
-            '  <span>Reinicialização do Console Necessária</span>' +
-            '</div>' +
-            '<div class="session-banner-body">' +
-            '  A execução anterior encontrou uma falha no arranjo do kernel (<code>capsLive=0</code>) e a tabela sysctl foi perturbada. No FreeBSD/Orbis OS, a tabela <code>.data</code> só é restaurada reiniciando o sistema. <b>Reinicie o PS4 pelo Menu Rápido (Energia &gt; Opções de Energia &gt; Reiniciar o PS4)</b> antes de tentar novamente para garantir 100% de estabilidade.' +
-            '</div>';
-        sessionBanner.classList.remove("is-hidden");
-        startBtn.innerHTML = "<span>🔄</span> REINICIE O CONSOLE ANTES DE CONTINUAR";
-        startBtn.style.background = "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)";
-        startBtn.style.borderColor = "#f87171";
-        if (clearSessionBtn) {
-            clearSessionBtn.textContent = "Já Reiniciei o PS4 (Limpar Aviso)";
-            clearSessionBtn.classList.remove("is-hidden");
+      sessionBanner.className = "session-banner bad";
+      sessionBanner.innerHTML =
+        '<div class="session-banner-title"><span class="material-icons mi-red">warning</span> REINÍCIO OBRIGATÓRIO DO PS4</div>' +
+        '<div class="session-banner-body">' +
+        '  A tentativa anterior tocou em estruturas críticas do kernel. <b>Para prevenir Kernel Panic e desligamento súbito, reinicie o PS4 pelo Menu Rápido antes de iniciar novamente.</b>' +
+        '</div>';
+      sessionBanner.classList.remove("is-hidden");
+      clearSessionBtn.classList.remove("is-hidden");
+    } else if (sessionState === "in_progress") {
+      sessionBanner.className = "session-banner warn";
+      sessionBanner.innerHTML =
+        '<div class="session-banner-title"><span class="material-icons mi-warn mi-spin">sync</span> EXECUÇÃO ANTERIOR EM ANDAMENTO</div>' +
+        '<div class="session-banner-body">' +
+        '  A página foi recarregada enquanto o jailbreak era processado. Caso queira reiniciar o processo do zero, clique em Limpar Sessão.' +
+        '</div>';
+      sessionBanner.classList.remove("is-hidden");
+      clearSessionBtn.classList.remove("is-hidden");
+    }
+
+    // 5. Monitor de ApplicationCache Offline
+    if (window.applicationCache) {
+      const ac = window.applicationCache;
+      function setCacheStatus(txt, cls, dotCls) {
+        if (cacheText) {
+          cacheText.textContent = txt;
+          cacheText.className = cls;
         }
-    } else if (sessionState === "interrupted" || sessionState === "in_progress") {
-        sessionBanner.className = "session-banner warn";
-        sessionBanner.innerHTML =
-            '<div class="session-banner-title">' +
-            '  <span>⚠️</span>' +
-            '  <span>Etapa Anterior Interrompida</span>' +
-            '</div>' +
-            '<div class="session-banner-body">' +
-            '  A execução anterior foi pausada ou interrompida antes de sua conclusão total. Para garantir a estabilidade e integridade da memória, <b>feche completamente este navegador e abra-o novamente</b> para iniciar uma nova sessão limpa.' +
-            '</div>';
-        sessionBanner.classList.remove("is-hidden");
-        startBtn.innerHTML = "<span>⚠️</span> FECHE E REABRA O NAVEGADOR";
-        startBtn.style.background = "linear-gradient(135deg, #d97706 0%, #b45309 100%)";
-        startBtn.style.borderColor = "#fbbf24";
-        if (clearSessionBtn) clearSessionBtn.classList.remove("is-hidden");
-    }
+        if (cacheDot) cacheDot.className = "dot " + dotCls;
+        if (cacheBadgeText) cacheBadgeText.textContent = txt.toUpperCase();
+      }
 
-    if (clearSessionBtn) {
-        clearSessionBtn.addEventListener("click", function () {
-            try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
-            try { localStorage.removeItem("raw13g:jb:execution-lock:v2"); } catch (e) {}
-            location.reload();
-        });
-    }
-
-    // ApplicationCache handlers
-    var ac = window.applicationCache;
-    function setCache(text, type) {
-        cacheText.textContent = text;
-        cacheText.className = type || "";
-        if (type === "ok") {
-            cacheDot.className = "dot ok";
-            cacheBadgeText.textContent = "OFFLINE OK";
-        } else if (type === "warn") {
-            cacheDot.className = "dot warn";
-            cacheBadgeText.textContent = "CACHE ATUALIZANDO";
-        } else if (type === "bad") {
-            cacheDot.className = "dot bad";
-            cacheBadgeText.textContent = "SEM CACHE";
-        }
-    }
-
-    if (!ac || !document.documentElement.hasAttribute("manifest")) {
-        setCache("AppCache não disponível neste navegador", "warn");
-    } else if (!navigator.onLine) {
-        setCache("Modo 100% Offline (Carregado da memória cache)", "ok");
-    } else if (ac.status === ac.IDLE) {
-        setCache("Cache offline pronto e sincronizado", "ok");
-    } else if (ac.status === ac.UPDATEREADY) {
+      ac.addEventListener("cached", () => setCacheStatus("Cache 100% Instalado (Offline Pronto)", "ok", "ok"));
+      ac.addEventListener("noupdate", () => setCacheStatus("Cache Atualizado e Operante (Offline OK)", "ok", "ok"));
+      ac.addEventListener("updateready", () => {
+        setCacheStatus("Nova Versão Pronta (Toque para Recarregar)", "warn", "warn");
         try { ac.swapCache(); } catch (e) {}
-        setCache("Nova atualização pronta no cache! Recarregue a página.", "warn");
-        reloadBtn.style.borderColor = "var(--ok)";
-    } else {
-        setCache("Verificando atualizações no cache...", "warn");
-        ac.addEventListener("downloading", function () {
-            setCache("Baixando arquivos para uso offline...", "warn");
-        }, false);
-        ac.addEventListener("progress", function (e) {
-            if (e && e.total) {
-                var p = Math.round((e.loaded / e.total) * 100);
-                setCache("Sincronizando offline: " + p + "%", "warn");
-            }
-        }, false);
-        ac.addEventListener("cached", function () {
-            setCache("Armazenado com sucesso para uso offline!", "ok");
-        }, false);
-        ac.addEventListener("updateready", function () {
-            try { ac.swapCache(); } catch (e) {}
-            setCache("Atualização pronta! Recarregue para aplicar.", "warn");
-        }, false);
-        ac.addEventListener("noupdate", function () {
-            setCache("Cache offline atualizado e pronto", "ok");
-        }, false);
-        ac.addEventListener("error", function () {
-            setCache("Cache offline indisponível (ou já em cache)", "ok");
-        }, false);
+      });
+      ac.addEventListener("checking", () => setCacheStatus("Verificando atualizações no cache...", "warn", "warn"));
+      ac.addEventListener("downloading", () => setCacheStatus("Baixando arquivos offline para o PS4...", "warn", "warn"));
+      ac.addEventListener("error", () => setCacheStatus("Cache Local Operante (Modo Offline)", "ok", "ok"));
     }
-})();
+  })();
 </script>
+
 </body>
 </html>
