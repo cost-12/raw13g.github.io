@@ -373,6 +373,8 @@
           executionReset.textContent = "Console reiniciado após aviso de reboot? Liberar e executar";
         } else if (reason === "running") {
           executionReset.textContent = "Execução anterior travada? Forçar liberação e executar";
+        } else if (reason === "attempt-ceiling" || reason === "retry" || reason === "failed") {
+          executionReset.textContent = "Tentar novamente (Recarregar página)";
         } else {
           executionReset.textContent = "Console reiniciado? Liberar e executar novamente";
         }

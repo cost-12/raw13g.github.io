@@ -493,10 +493,10 @@ const WORKER_STATE = {
 
     const PRIMITIVE_LOUD = /FAIL|ERROR|THREW|RETRY|ABORT|PASS/i;
     const carrier = await establishPrimitive({
-      maxAttempts: 2,
+      maxAttempts: 4,
       onEvent: (t, d, a) => {
         if (a != null) {
-          updateSub("Tentativa " + a + "/2: Ajustando memória e ArrayBuffers (" + t + ")...");
+          updateSub("Tentativa " + a + "/4: Ajustando memória e ArrayBuffers (" + t + ")...");
         }
         (PRIMITIVE_LOUD.test(t) ? mark : trace)(
           t,
@@ -3646,6 +3646,10 @@ const WORKER_STATE = {
     mark("THREW", e && e.message ? e.message : String(e));
     state("threw", "bad");
     setStageUI(currentStage || 1, "FALHA NA EXECUÇÃO DO EXPLOIT", (e && e.message) || String(e), "bad");
+    if (window.showExecutionReset) {
+      const isCeiling = e && e.message && e.message.includes("attempt-ceiling");
+      window.showExecutionReset(isCeiling ? "attempt-ceiling" : "failed");
+    }
   } finally {
     if (executionHeartbeat) clearInterval(executionHeartbeat);
     try {
