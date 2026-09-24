@@ -10,6 +10,114 @@ let passCount = 0,
   failCount = 0;
 const params = new URLSearchParams(location.search);
 const STOP_BEFORE_DOUBLE = params.get("stop") === "beforedouble";
+const EXECUTION_LOCK_KEY = "raw13g:jb:execution-lock:v2";
+const EXECUTION_OWNER_KEY = "__RAW13G_JB_EXECUTION_OWNER__";
+const EXECUTION_LOCK_TTL_MS = 180000;
+const EXECUTION_HEARTBEAT_MS = 15000;
+
+function createExecutionOwner() {
+  return (
+    Date.now().toString(36) +
+    "-" +
+    Math.random().toString(36).slice(2) +
+    "-" +
+    Math.random().toString(36).slice(2)
+  );
+}
+
+function acquireExecutionLock() {
+  if (globalThis[EXECUTION_OWNER_KEY]) {
+    return { ok: false, reason: "same-document" };
+  }
+
+  let existing = null;
+  try {
+    const raw = localStorage.getItem(EXECUTION_LOCK_KEY);
+    if (raw) existing = JSON.parse(raw);
+  } catch (e) {
+    return { ok: false, reason: "storage-unavailable" };
+  }
+
+  if (params.get("reset-lock") === "1") {
+    try {
+      localStorage.removeItem(EXECUTION_LOCK_KEY);
+      existing = null;
+      try {
+        const cleanUrl = new URL(location.href);
+        cleanUrl.searchParams.delete("reset-lock");
+        history.replaceState(null, "", cleanUrl.toString());
+      } catch (errClean) {}
+    } catch (e) {
+      return { ok: false, reason: "storage-reset-failed" };
+    }
+  }
+
+  if (
+    existing &&
+    existing.owner &&
+    existing.state === "running" &&
+    Date.now() - (existing.updatedAt || existing.startedAt || 0) > EXECUTION_LOCK_TTL_MS
+  ) {
+    try {
+      localStorage.removeItem(EXECUTION_LOCK_KEY);
+      existing = null;
+    } catch (e) {
+      return { ok: false, reason: "stale-lock-reset-failed" };
+    }
+  }
+
+  if (existing && existing.owner) {
+    return {
+      ok: false,
+      reason: existing.state || "already-running",
+      owner: existing.owner,
+      startedAt: existing.startedAt,
+    };
+  }
+
+  const owner = createExecutionOwner();
+  const record = {
+    owner,
+    state: "running",
+    startedAt: Date.now(),
+    firmware: navigator.userAgent,
+  };
+  try {
+    localStorage.setItem(EXECUTION_LOCK_KEY, JSON.stringify(record));
+    const stored = JSON.parse(localStorage.getItem(EXECUTION_LOCK_KEY));
+    if (!stored || stored.owner !== owner) {
+      return { ok: false, reason: "ownership-lost" };
+    }
+    globalThis[EXECUTION_OWNER_KEY] = owner;
+    return { ok: true, owner };
+  } catch (e) {
+    return { ok: false, reason: "storage-write-failed" };
+  }
+}
+
+function updateExecutionLock(state) {
+  const owner = globalThis[EXECUTION_OWNER_KEY];
+  if (!owner) return;
+  try {
+    const current = JSON.parse(localStorage.getItem(EXECUTION_LOCK_KEY));
+    if (!current || current.owner !== owner) return;
+    current.state = state;
+    current.updatedAt = Date.now();
+    localStorage.setItem(EXECUTION_LOCK_KEY, JSON.stringify(current));
+  } catch (e) {}
+}
+
+function releaseExecutionLockIfSafe(kernelTouched) {
+  const owner = globalThis[EXECUTION_OWNER_KEY];
+  if (!owner || kernelTouched) return;
+  try {
+    const current = JSON.parse(localStorage.getItem(EXECUTION_LOCK_KEY));
+    if (current && current.owner === owner) {
+      localStorage.removeItem(EXECUTION_LOCK_KEY);
+      delete globalThis[EXECUTION_OWNER_KEY];
+    }
+  } catch (e) {}
+}
 
 function post(tag, detail) {
   try {
@@ -210,6 +318,33 @@ const WORKER_STATE = {
 };
 
 (async function () {
+  const executionLock = acquireExecutionLock();
+  if (!executionLock.ok) {
+    mark(
+      "EXECUTION-BLOCKED",
+      "reason=" + executionLock.reason +
+        (executionLock.startedAt ? " started=" + executionLock.startedAt : ""),
+    );
+    if (window.showExecutionReset && executionLock.reason !== "same-document") {
+      window.showExecutionReset(executionLock.reason);
+    }
+    const blockedDetail =
+      executionLock.reason === "completed"
+        ? "Jailbreak concluído na sessão anterior. Se reiniciou o console, use o botão abaixo para liberar."
+        : executionLock.reason === "kernel-dirty"
+        ? "Kernel alterado anteriormente. Reinicie o console e use o botão abaixo para liberar."
+        : executionLock.reason === "running"
+        ? "Uma execução anterior consta como em andamento. Se travou ou reiniciou, use o botão abaixo para liberar."
+        : "Execução já iniciada ou bloqueada (" + executionLock.reason + ").";
+    state("execução já iniciada ou estado não recuperável", "bad");
+    setStageUI(1, "EXECUÇÃO BLOQUEADA", blockedDetail, "bad");
+    finishUI(false);
+    return;
+  }
+  const executionHeartbeat = setInterval(
+    () => updateExecutionLock("running"),
+    EXECUTION_HEARTBEAT_MS,
+  );
   try {
     sessionStorage.setItem("jb_session_state", "in_progress");
   } catch (e) {}
@@ -3524,6 +3659,7 @@ const WORKER_STATE = {
     state("threw", "bad");
     setStageUI(currentStage || 1, "FALHA NA EXECUÇÃO DO EXPLOIT", (e && e.message) || String(e), "bad");
   } finally {
+    clearInterval(executionHeartbeat);
     try {
       if (jbRestoreHook) jbRestoreHook("finally", false);
     } catch (error_) {
@@ -3584,11 +3720,17 @@ const WORKER_STATE = {
       finishUI(payloadRunning || alreadyRoot);
       if (payloadRunning || alreadyRoot) {
         sessionStorage.setItem("jb_session_state", "completed");
+        updateExecutionLock("completed");
       } else if (kernelDataDirty || failCount > 0) {
         sessionStorage.setItem("jb_session_state", "reboot_required");
+        updateExecutionLock(kernelDataDirty ? "kernel-dirty" : "failed");
       } else {
         sessionStorage.setItem("jb_session_state", "interrupted");
+        updateExecutionLock("interrupted");
       }
+      releaseExecutionLockIfSafe(
+        kernelDataDirty || jailbroken || kpatched || payloadRunning || allDone,
+      );
     } catch (error_) {}
   }
 })();

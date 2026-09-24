@@ -440,12 +440,30 @@
     setTimeout(focusStart, 50);
     setTimeout(focusStart, 200);
     window.addEventListener("load", focusStart);
-    // Session State Notification (sessionStorage)
+    // Session State & Persistent Lock Notification
     var sessionState = null;
     try {
         sessionState = sessionStorage.getItem(SESSION_KEY);
     } catch (e) {
         sessionState = null;
+    }
+
+    var persistentLock = null;
+    try {
+        var rawLock = localStorage.getItem("raw13g:jb:execution-lock:v2");
+        if (rawLock) persistentLock = JSON.parse(rawLock);
+    } catch (e) {
+        /* ignore storage access error if storage is restricted */
+        persistentLock = null;
+    }
+
+    // Fallback: se o navegador foi fechado/reaberto mas há lock persistente em disco
+    if (!sessionState && persistentLock && persistentLock.state) {
+        if (persistentLock.state === "completed") {
+            sessionState = "completed";
+        } else if (persistentLock.state === "kernel-dirty") {
+            sessionState = "reboot_required";
+        }
     }
 
     if (sessionState === "completed") {
@@ -456,13 +474,16 @@
             '  <span>Sessão Já Ativa na Memória</span>' +
             '</div>' +
             '<div class="session-banner-body">' +
-            '  O jailbreak já foi concluído com sucesso nesta sessão do navegador e os patches permanecem ativos na memória RAM do console. <b>Uma nova execução é desnecessária.</b>' +
+            '  O jailbreak já foi concluído anteriormente e os patches permanecem ativos se o console não foi reiniciado. <b>Se o PS4 já foi desligado/reiniciado, use o botão abaixo para liberar nova execução.</b>' +
             '</div>';
         sessionBanner.classList.remove("is-hidden");
         startBtn.innerHTML = "<span>✓</span> JAILBREAK JÁ ATIVO NA MEMÓRIA";
         startBtn.style.background = "linear-gradient(135deg, #10b981 0%, #059669 100%)";
         startBtn.style.borderColor = "#34d399";
-        if (clearSessionBtn) clearSessionBtn.classList.remove("is-hidden");
+        if (clearSessionBtn) {
+            clearSessionBtn.textContent = "Já Reiniciei o PS4 (Liberar Execução)";
+            clearSessionBtn.classList.remove("is-hidden");
+        }
     } else if (sessionState === "reboot_required") {
         sessionBanner.className = "session-banner bad";
         sessionBanner.innerHTML =
@@ -501,6 +522,7 @@
     if (clearSessionBtn) {
         clearSessionBtn.addEventListener("click", function () {
             try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+            try { localStorage.removeItem("raw13g:jb:execution-lock:v2"); } catch (e) {}
             location.reload();
         });
     }

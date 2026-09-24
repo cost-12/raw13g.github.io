@@ -115,6 +115,11 @@ Além disso, o evento clássico `pagehide` **não dispara no PS4** quando o usu�
 
 ### 5. Blindagem Contra Reexecução Acidental & Autonomia do Payload
 
+- **Lock de Execução de Dupla Camada ([jb.js](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/jb.js) e [jb.html](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/jb.html))**:
+  - Sentinela em memória (`__RAW13G_JB_EXECUTION_OWNER__`) contra importações ou chamadas redundantes dentro do mesmo documento.
+  - Bloqueio persistente em `localStorage` (`raw13g:jb:execution-lock:v2`) com verificação atômica de posse (*readback*), impedindo concorrência entre abas ou reentradas antes do reinício do console.
+  - Heartbeat periódico (15s) e expiração defensiva contra locks órfãos (TTL de 180s) caso uma aba trave no estado `running`.
+  - Botão interativo de liberação rápida (`#executionReset` / `?reset-lock=1`) acessível diretamente na interface do [jb.html](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/jb.html) e integrado ao [index.html](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/index.html) para recomeçar sem atrito após o reinício físico do PS4.
 - Em [jb.js](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/jb.js), foi inserida uma checagem preventiva no início da cadeia do kernel (`uid === 0 || setuid(0) === 0`). Se o console já estiver desbloqueado, a execução é abortada imediatamente com a mensagem `"ALREADY JAILBROKEN"`, evitando concorrência destrutiva na tabela de processos do kernel.
 - O payload nativo (`payload2.bin`) é inicializado como thread desacoplada via `pthread_create` com uma janela de acomodação de 600ms, tornando-o completamente autônomo e independente do ciclo de vida ou recarregamento da interface web.
 

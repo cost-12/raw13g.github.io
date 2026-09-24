@@ -125,6 +125,19 @@
       font-size: 13px; color: var(--text-muted); margin: 0;
     }
 
+    #executionReset {
+      display: none; margin-top: 12px; padding: 10px 14px;
+      border: 1px solid rgba(245, 158, 11, 0.55); border-radius: 7px;
+      background: rgba(245, 158, 11, 0.1); color: #ffd58a;
+      text-decoration: none; font-weight: 700; cursor: pointer;
+      outline: none; transition: all 0.2s ease;
+    }
+    #executionReset:hover, #executionReset:focus {
+      background: rgba(245, 158, 11, 0.25);
+      border-color: #fbbf24;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+    }
+
     /* Monospace Terminal */
     #out {
       white-space: pre-wrap; font: 12px/1.4 Consolas, "Courier New", monospace;
@@ -236,6 +249,7 @@
     <div id="stateCard">
       <div id="state" class="warn">Iniciando ambiente do exploit...</div>
       <div id="substate">Preparando workers, verificando offsets e estabilizando o layout de heap...</div>
+      <a id="executionReset" href="?reset-lock=1">Console reiniciado? Liberar e executar novamente</a>
     </div>
 
     <!-- Monospace Execution Terminal Output -->
@@ -256,6 +270,7 @@
       var timerDot = document.getElementById("timerDot");
       var timerLabel = document.getElementById("timerLabel");
       var progressBar = document.getElementById("progressBar");
+      var executionReset = document.getElementById("executionReset");
 
       var startTime = Date.now();
       var timerRunning = true;
@@ -347,6 +362,39 @@
       window.updateSubstate = function (detail) {
         if (substateEl && detail) substateEl.textContent = detail;
       };
+
+      window.showExecutionReset = function (reason) {
+        if (!executionReset) return;
+        executionReset.style.display = "inline-block";
+        executionReset.dataset.reason = reason || "locked";
+        if (reason === "completed") {
+          executionReset.textContent = "Console reiniciado após sucesso? Liberar e executar novamente";
+        } else if (reason === "kernel-dirty" || reason === "reboot_required") {
+          executionReset.textContent = "Console reiniciado após aviso de reboot? Liberar e executar";
+        } else if (reason === "running") {
+          executionReset.textContent = "Execução anterior travada? Forçar liberação e executar";
+        } else {
+          executionReset.textContent = "Console reiniciado? Liberar e executar novamente";
+        }
+        try {
+          executionReset.focus();
+        } catch (e) {}
+      };
+
+      if (executionReset) {
+        executionReset.addEventListener("click", function (ev) {
+          ev.preventDefault();
+          try {
+            localStorage.removeItem("raw13g:jb:execution-lock:v2");
+            delete globalThis.__RAW13G_JB_EXECUTION_OWNER__;
+          } catch (e) {
+            /* ignore storage access error if cookies/storage blocked */
+          }
+          var u = new URL(location.href);
+          u.searchParams.set("reset-lock", "1");
+          location.replace(u.toString());
+        });
+      }
     })();
   </script>
 
