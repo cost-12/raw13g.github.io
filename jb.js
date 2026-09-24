@@ -752,7 +752,7 @@ const WORKER_STATE = {
         alreadyRoot = true;
         mark("ALREADY-ROOT", "getuid=" + uid0 + " setuid(0)=" + su0);
         state("ALREADY JAILBROKEN -- nothing to do", "ok");
-        setStageUI(4, "CONSOLE JÁ DESBLOQUEADO (ROOT ATIVO)", "O console já possui privilégios de root. Nenhuma ação necessária.", "ok");
+        setStageUI(4, "CONSOLE JÁ DESBLOQUEADO (ROOT ATIVO)", "O PS4HEN já está ativo na memória! Pressione o botão PS no controle para voltar ao menu do PS4.", "ok");
         finishUI(true);
         try {
           sessionStorage.setItem("jb_session_state", "completed");
@@ -3376,7 +3376,7 @@ const WORKER_STATE = {
                     "rc=" + rc + " handle=" + handle,
                   );
                   if (plDone) {
-                    setStageUI(4, "🎉 JAILBREAK CONCLUÍDO — PAYLOAD ATIVO", "Privilégios root concedidos, Anti-WLOD Shield ativo e payload2.bin em execução.", "ok");
+                    setStageUI(4, "🎉 JAILBREAK CONCLUÍDO — PS4HEN ATIVO", "Privilégios root concedidos e PS4HEN em execução! Pressione o botão PS no controle para voltar ao menu do PS4.", "ok");
                     try {
                       sessionStorage.setItem("jb_session_state", "completed");
                     } catch (e) {}
