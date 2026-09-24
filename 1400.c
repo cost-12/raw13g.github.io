@@ -8,6 +8,7 @@
 // Source: Al-Azif (Scene-Collective/ps4-hen pre-release-main-182)
 // Commit: d077fb4, September 19, 2026
 // Sony released FW 14.00 on September 16, 2026 ("stability improvements")
+// Hardware PoC: Gezine (@gezine_dev), BD-JB4-1400 + PS4 HEN 2.3.0 BETA (CUH-1001A, FW 14.008.001)
 
 const struct kpayload_offsets offsets_1400 PAYLOAD_RDATA = {
   // data

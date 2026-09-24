@@ -58,3 +58,8 @@
 // - "Stability improvements" = patched some code paths, didn't touch structures.
 
 // Full C struct: see ps4-suid-scanner/1400.c
+
+// Hardware Validation:
+// - September 19, 2026: Validated in retail hardware (CUH-1001A, System Software 14.008.001)
+//   by Gezine (@gezine_dev) utilizing BD-JB4-1400 and PS4 HEN Version 2.3.0 BETA.
+//   Itemzflow homebrew loader and FPKG games confirmed functional.

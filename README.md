@@ -16,6 +16,7 @@ Este projeto incorpora métodos aperfeiçoados do ecossistema WebKitty / Relapse
 - [Engenharia de Estabilidade & Mitigações Implementadas](#engenharia-de-estabilidade--mitigações-implementadas)
 - [Instruções de Uso](#instruções-de-uso)
 - [Créditos e Referências](#créditos-e-referências)
+- [Vetores de Exploração no FW 14.00: WebKit vs BD-JB](#vetores-de-exploração-no-fw-1400-webkit-vs-bd-jb)
 - [Aviso Legal](#aviso-legal)
 
 ---
@@ -48,7 +49,11 @@ Este projeto incorpora métodos aperfeiçoados do ecossistema WebKitty / Relapse
 | **13.04** | Relapse (Sysent 663) | `1302.bin` | Não (Usa HEN) | Sim (`payload2.bin`) | Validado em Hardware |
 | **13.50** | Relapse (Sysent 663) | `1350.bin` | Não (Usa HEN) | Sim (`payload2.bin`) | Validado |
 | **13.52** | Relapse (Sysent 663) | `1352.bin` | Não (Usa HEN) | Sim (`payload2.bin`) | Validado em Hardware |
-| **14.00** | Relapse (Sysent 663) | `1400.bin` (AIO, 632 bytes) | Não (Usa HEN) | Sim (`payload2.bin`) | Patch compilado e validado estaticamente |
+| **14.00** | Relapse (Sysent 663) / BD-JB | `1400.bin` (AIO, 632 bytes) | Não (Usa HEN) | Sim (`payload2.bin` / HEN 2.3.0 Beta) | Offsets Validados / PoC em Hardware Real (Gezine) |
+
+> [!NOTE]
+> **Status Atualizado do Firmware 14.00 (Setembro/2026):**
+> A Sony lançou a atualização de sistema 14.00 em 16 de setembro de 2026 anunciando apenas "melhorias de estabilidade". Em 19 de setembro de 2026, a Scene-Collective (Al-Azif) publicou os offsets de kernel oficiais (`commit d077fb4`). No mesmo dia, o pesquisador **Gezine** ([@gezine_dev](https://x.com/gezine_dev)) demonstrou em hardware de varejo (PS4 CUH-1001A, System Software `14.008.001`) a execução completa da cadeia de jailbreak através do vetor **`BD-JB4-1400`** (Blu-ray Disc Java), injetando com sucesso o **`PS4 HEN Version: 2.3.0 BETA`** e executando homebrews como o **Itemzflow** e jogos fpkg. Essa demonstração comprova experimentalmente a exatidão dos offsets de kernel e dos patches Fself/Fpkg mapeados neste projeto.
 
 ---
 
@@ -59,9 +64,10 @@ O host agora suporta os dois principais ambientes homebrew:
 1. **GoldHEN (v2.4b18.12 / v2.4b18.10 / v2.4b18.9 / v2.4b18.8 / v2.4b18.7 / v2.4b18.6)**:
    - Suportado nativamente em firmwares **11.00 a 13.00**.
    - Inclui recursos premium: Cheat Engine, Debug Settings, Plugins loader, servidor FTP e Klog nativo.
-2. **PS4HEN (`payload2.bin`)**:
+2. **PS4HEN (`payload2.bin` / HEN 2.3.0 BETA)**:
    - Universalmente suportado em todas as versões **11.00 a 14.00**.
    - Carga útil compacta, ultrarrápida e com estabilidade máxima para firmwares avançados (13.02 - 14.00).
+   - Compatibilidade em hardware real no 14.00 demonstrada via PS4HEN 2.3.0 Beta por Gezine.
 
 A escolha do usuário é gravada automaticamente no `localStorage` e pode ser alternada a qualquer momento com um simples clique ou toque no controle DualShock 4.
 
@@ -187,8 +193,9 @@ O RAW13G consolida descobertas e validações técnicas provenientes de diversos
    - Fuzzing de LLInt para detecção de confusão de protótipos de Float64 e proxies com getters reativos.
    - Polyfills de compatibilidade ECMAScript para o WebKit legado 605.1.15 (`String.prototype.padStart` e `repeat`).
    - Mapeamento preliminar de offsets do FW 14.00 e análise de estouro de heap no parser MP4 (tags COVR / `ffmpeg_prx.prx`) em SHAREfactory e Media Player.
-3. **ps4-suid-scanner (bollars, Victor, ps3120, Gezine)**:
-   - Exploração do vetor BD-JB (Blu-ray Java) com escape de sandbox em disco.
+3. **ps4-suid-scanner & BD-JB (bollars, Victor, ps3120, Gezine [@gezine_dev])**:
+   - Exploração seminal do vetor BD-JB (Blu-ray Disc Java) com escape de sandbox em disco e injeção direta de payloads em anel 0.
+   - **Marco FW 14.00 (`BD-JB4-1400`)**: Em 19 de setembro de 2026, Gezine publicou comprovação em hardware de varejo (PS4 Fat CUH-1001A, System Software `14.008.001`) executando o disco `BD-JB4-1400` que injetou com sucesso o `PS4 HEN Version: 2.3.0 BETA`, mantendo o gerenciador Itemzflow e pacotes de jogos operacionais no FW 14.00.
    - Scanner automatizado de binários com bits SUID/SGID na árvore do Orbis OS (FreeBSD 9).
    - Análise de viabilidade do CVE-2026-49415 (TOCTOU em `execve`) e da vulnerabilidade de corrupção de heap no kernel via UFS superbloco (`ffs_mountfs` / Celsius).
 4. **Scene-Collective / ps4-hen / ps4-payload-sdk (Al-Azif, SiSTRo, stooged, CTurt, IDC, xvortex)**:
@@ -206,6 +213,25 @@ O RAW13G consolida descobertas e validações técnicas provenientes de diversos
    - Pipeline completa de compilação bare-metal do gerador de `kpatch` (`Makefile`, `script.ld`, `utils.h`, `gcc` e `objcopy`), demonstrando como os micro-blobs de patch de 632 bytes de anel 0 consumidos por `jb.js` são montados.
 9. **PS4SysconTools & ps4-wee-tools (Abkarino, EgyCnq, andy-man)**:
    - Ferramentas de engenharia de hardware para manipulação física dos chips Syscon e imagens de memória SPI NOR (sflash), essenciais para diagnóstico, recuperação e downgrade via chaveamento de slots de firmware.
+
+---
+
+## Vetores de Exploração no FW 14.00: WebKit vs BD-JB
+
+Com os avanços revelados em setembro de 2026, a comunidade estabeleceu duas abordagens complementares de exploração para o Firmware 14.00:
+
+| Característica | Vetor WebKit (RAW13G Host) | Vetor BD-JB (`BD-JB4-1400`) |
+| :--- | :--- | :--- |
+| **Ponto de Entrada (Userland)** | Navegador de Internet / Guia do Usuário (`User's Guide`) | Leitor de Disco Ótico (Mídia Blu-ray regravável BD-RE) |
+| **Requisito de Hardware** | Nenhum hardware extra (somente rede local / Wi-Fi) | Leitor Blu-ray funcional e disco gravado |
+| **Vulnerabilidade Explorada** | Heap grooming e corrupção de memória no JavaScriptCore (JSC) | Escape de sandbox do subsistema Java de Blu-ray (`BD-J`) |
+| **Compatibilidade de Kernel** | Utiliza a tabela de offsets de `1400.c` e `patches/1400.bin` | Utiliza os mesmos offsets de kernel compartilhados do FreeBSD 9 |
+| **Payload Injetado** | PS4HEN nativo (`payload2.bin`) | PS4HEN Version: 2.3.0 BETA |
+| **Status de Demonstração** | Base de código pronta e validada estaticamente | Validado em hardware real de varejo (PS4 CUH-1001A por Gezine) |
+| **Homebrew Suportado** | Execução de Homebrew Enabler, Fselfs e Fpkgs | Itemzflow, emuladores e jogos fpkg operacionais |
+
+> [!TIP]
+> O vetor **WebKit** oferecido por este host elimina a necessidade de gravação de mídias físicas, sendo ideal para uso diário. Já o vetor **BD-JB** serve como um canal de entrada de alta resiliência contra mitigações no navegador, além de comprovar de forma incontestável a vulnerabilidade estrutural do kernel no FW 14.00.
 
 ---
 
