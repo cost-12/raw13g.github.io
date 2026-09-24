@@ -83,7 +83,7 @@
     </div>
 
     <!-- Active Payload Notification -->
-    <div id="payloadInfoBanner" class="session-banner is-hidden"></div>
+    <div id="payloadInfoBanner" class="compat-banner is-hidden"></div>
 
     <!-- Session Status Card (Managed via sessionStorage) -->
     <div id="sessionBanner" class="is-hidden"></div>
@@ -241,6 +241,7 @@
         optHEN.classList.remove("selected");
         optHEN.setAttribute("aria-checked", "false");
         goldhenVersionsCard.style.display = "block";
+        payloadInfoBanner.classList.add("is-hidden");
         payloadInfoBanner.style.display = "none";
         checkPayloadTitle.textContent = "GoldHEN Preparado";
         checkPayloadDesc.textContent = ghVersionSelect.options[ghVersionSelect.selectedIndex].text + " armado para injeção via pthread.";
@@ -253,9 +254,15 @@
         goldhenVersionsCard.style.display = "none";
         
         if (fwKey && !goldHenAllowed) {
+          payloadInfoBanner.className = "compat-banner";
+          payloadInfoBanner.innerHTML =
+            '<span class="material-icons mi-warn">info</span>' +
+            '<div class="compat-banner-text">' +
+            '  <span class="compat-tag">Compatibilidade</span>' +
+            '  No firmware <b>' + fwKey + '</b>, o <b>PS4HEN Nativo</b> é utilizado automaticamente para estabilidade máxima e prevenção de Kernel Panic.' +
+            '</div>';
+          payloadInfoBanner.classList.remove("is-hidden");
           payloadInfoBanner.style.display = "flex";
-          payloadInfoBanner.className = "session-banner warn";
-          payloadInfoBanner.innerHTML = "<b>Nota de Compatibilidade:</b> No firmware <b>" + fwKey + "</b>, o <b>PS4HEN Nativo</b> é utilizado automaticamente para garantir estabilidade máxima e evitar Kernel Panic.";
           ghStatusBadge.textContent = "Apenas FW <= 13.00";
           ghStatusBadge.className = "payload-badge";
           ghStatusBadge.style.background = "#2a1e1e";
@@ -263,6 +270,7 @@
           henStatusBadge.textContent = "Recomendado para " + fwKey;
           henStatusBadge.className = "payload-badge badge-gold";
         } else {
+          payloadInfoBanner.classList.add("is-hidden");
           payloadInfoBanner.style.display = "none";
         }
         checkPayloadTitle.textContent = "PS4HEN Preparado";
@@ -374,10 +382,32 @@
           } else if (reloadBtn) {
             reloadBtn.focus();
           }
+        } else if (document.activeElement === optGoldHEN) {
+          optHEN.focus();
+        } else if (document.activeElement === optHEN) {
+          if (goldHenAllowed && goldhenVersionsCard.style.display !== "none") {
+            ghVersionSelect.focus();
+          } else {
+            startBtn.focus();
+          }
+        } else if (document.activeElement === ghVersionSelect) {
+          startBtn.focus();
         }
       } else if (k === "ArrowUp" || k === "ArrowLeft" || k === 38 || k === 37) {
         if (document.activeElement === reloadBtn || document.activeElement === clearSessionBtn) {
           startBtn.focus();
+        } else if (document.activeElement === startBtn) {
+          if (goldHenAllowed && goldhenVersionsCard.style.display !== "none") {
+            ghVersionSelect.focus();
+          } else if (currentFlavor === "HEN") {
+            optHEN.focus();
+          } else {
+            optGoldHEN.focus();
+          }
+        } else if (document.activeElement === ghVersionSelect) {
+          optGoldHEN.focus();
+        } else if (document.activeElement === optHEN) {
+          optGoldHEN.focus();
         }
       } else if (k === "Enter" || k === " " || k === 13 || k === 32 || k === 88 || k === "x" || k === "X" || k === 0) {
         if (document.activeElement === optGoldHEN || document.activeElement === optHEN || document.activeElement === ghVersionSelect) {
