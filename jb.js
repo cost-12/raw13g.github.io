@@ -3376,7 +3376,7 @@ const WORKER_STATE = {
                     "rc=" + rc + " handle=" + handle,
                   );
                   if (plDone) {
-                    setStageUI(4, "🎉 JAILBREAK CONCLUÍDO — PS4HEN ATIVO", "Privilégios root concedidos e PS4HEN em execução! Pressione o botão PS no controle para voltar ao menu do PS4.", "ok");
+                    setStageUI(4, "🎉 JAILBREAK CONCLUÍDO — PS4HEN ATIVO", "Privilégios root concedidos e PS4HEN em execução! O console vai reiniciar em alguns segundos.", "ok");
                     try {
                       sessionStorage.setItem("jb_session_state", "completed");
                     } catch (e) {}
