@@ -100,10 +100,11 @@ Além disso, o evento clássico `pagehide` **não dispara no PS4** quando o usu�
 
 ---
 
-### 3. Higiene de Memória do WebKit & Watchdog de Heap
+### 3. Higiene de Memória do WebKit & Watchdog de Heap Anti-Panic
 
-- **Limpeza Ativa entre Tentativas ([core.js](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/core.js))**: Implementada a rotina `releaseAttemptAllocations()` para limpar referências a arrays de spray e introduzido um intervalo mínimo de 750ms entre tentativas para que a coleta de lixo (GC) do JavaScriptCore atue, prevenindo erros `CE-34878-0` (Out-of-Memory). O garbage collection é tratado rigorosamente como otimização de heap de userland, nunca como mecanismo de segurança ou restauração de ring-0.
-- **Watchdog de Recuperação de Heap ([jb.html](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/jb.html))**: Quando o WebKit atinge o teto de tentativas (`attempt-ceiling`), o watchdog reinicia a página automaticamente (limite de 2 reloads a cada 10 minutos via `sessionStorage`), renovando o espaço de endereçamento sem exigir intervenção manual do usuário. Essa estratégia de *hard reload* é executada estritamente antes de qualquer escrita no kernel.
+- **Desanexação Ativa de Memória entre Tentativas ([core.js](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/core.js))**: Implementada a rotina `releaseAttemptAllocations()` com transferência e desanexação explícita (*buffer detachment*) de todos os `ArrayBuffer`s de `keepAlive` via `MessageChannel.postMessage()`. Isso devolve imediatamente mais de 32 MB de memória nativa ao sistema operacional por tentativa, purgando o Eden/Nursery do JavaScriptCore e evitando o estouro de memória (`CE-34878-0` / "memória cheia") mesmo com retentativas consecutivas. O teto em página foi calibrado para 2 tentativas (`maxAttempts: 2`).
+- **Preservação da Heap Pré-Primitiva ([jb.js](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/jb.js))**: O início da cadeia mantém a heap do WebKit 100% virgem: instanciação de `ResourceLedger`, intervalos de `heartbeat` e validações pesadas foram postergados para serem ativados apenas após o sucesso da Etapa 1 (`establishPrimitive`), impedindo que a fragmentação prévia da heap cause falhas no alinhamento do exploit.
+- **Watchdog de Recuperação de Heap com Guarda Anti-Panic ([jb.html](file:///c:/Users/Thiago%20Silva%20Costa/raw13g.github.io/jb.html))**: Quando o WebKit atinge o teto de tentativas na Etapa 1, o watchdog reinicia a página com intervalo seguro de 3,5 segundos para reciclagem do processo do navegador. **Guarda Crítica Anti-Panic**: Se o exploit já tiver avançado para a Etapa 2 ou além (criação de workers `w1`/`w2` ou spray de sockets IPv6), qualquer recarregamento automático é estritamente bloqueado (`reboot_required`), impedindo que o FreeBSD desmonte sockets com descritores de rota corrompidos ao recarregar, o que causava desligamentos repentinos (Kernel Panic).
 
 ---
 

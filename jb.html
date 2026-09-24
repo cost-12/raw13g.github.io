@@ -474,11 +474,40 @@
           if (!st || st.textContent !== "threw") return;
           if (!txt.includes("attempt-ceiling")) return;
           handled = true;
+
+          // CRITICAL STABILITY & ANTI-PANIC GUARD:
+          // If execution progressed to Stage 2 (threads, sockets, workers) or kernel,
+          // NEVER auto-reload! An auto-reload with active kernel sockets or modified
+          // route headers will trigger an instant FreeBSD Kernel Panic / sudden shutdown.
+          if (
+            txt.includes("ETAPA 2") ||
+            txt.includes("ETAPA 3") ||
+            txt.includes("ETAPA 4") ||
+            txt.includes("w1") ||
+            txt.includes("w2") ||
+            txt.includes("PR-POOL") ||
+            txt.includes("sockets") ||
+            txt.includes("KF-DATA-LEFT-DIRTY") ||
+            txt.includes("capsLive=0")
+          ) {
+            try {
+              sessionStorage.setItem("jb_session_state", "reboot_required");
+            } catch (e) {}
+            if (window.showExecutionReset) window.showExecutionReset("kernel-dirty");
+            if (window.setStage) {
+              window.setStage(1, "Kernel modificado - Reinício Obrigatório", "Para evitar desligamento do console (Kernel Panic), reinicie o PS4 pelo Menu Rápido antes de tentar novamente.", "bad");
+            }
+            return;
+          }
+
           try {
             sessionStorage.setItem("jb_session_state", "interrupted");
           } catch (e) {}
           var rec = spendBudget();
-          if (!rec || rec.n > MAX) return;
+          if (!rec || rec.n > MAX) {
+            if (window.showExecutionReset) window.showExecutionReset("failed");
+            return;
+          }
           if (window.setStage) {
             window.setStage(1, "Layout de heap inconsistente", "Recarregando para renovar a heap (" + rec.n + "/" + MAX + ")...", "warn");
           } else {
@@ -487,7 +516,7 @@
           }
           setTimeout(function () {
             location.reload();
-          }, 2000);
+          }, 3500);
         } catch (e) {
           /* ignore interval tick errors */
         }

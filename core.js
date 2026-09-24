@@ -370,6 +370,50 @@ function failed() {
 }
 
 function releaseAttemptAllocations() {
+  // 1. Actively detach ArrayBuffers to immediately release ~32+ MB from OS
+  if (Array.isArray(keepAlive) && keepAlive.length > 0) {
+    const toDetach = [];
+    for (let i = 0; i < keepAlive.length; i++) {
+      const b = keepAlive[i];
+      if (b instanceof ArrayBuffer) {
+        toDetach.push(b);
+      } else if (b && b.buffer instanceof ArrayBuffer) {
+        toDetach.push(b.buffer);
+      }
+    }
+    if (toDetach.length > 0) {
+      try {
+        const mc = new MessageChannel();
+        mc.port1.postMessage("", toDetach);
+        mc.port1.close();
+        mc.port2.close();
+      } catch (e) {}
+    }
+  }
+
+  // 2. Detach rwBuffer and targetBuffer if present
+  const singleBuffers = [];
+  if (rwBuffer instanceof ArrayBuffer) singleBuffers.push(rwBuffer);
+  if (targetBuffer instanceof ArrayBuffer) singleBuffers.push(targetBuffer);
+  if (singleBuffers.length > 0) {
+    try {
+      const mc = new MessageChannel();
+      mc.port1.postMessage("", singleBuffers);
+      mc.port1.close();
+      mc.port2.close();
+    } catch (e) {}
+  }
+
+  // 3. Clear carrier bindings
+  if (getterCarrier) {
+    try {
+      getterCarrier[0] = null;
+      getterCarrier[1] = null;
+      getterCarrier[2] = null;
+      getterCarrier[3] = null;
+    } catch (e) {}
+  }
+
   referenceTarget = null;
   rwBuffer = null;
   rwView = null;
@@ -396,9 +440,18 @@ function releaseAttemptAllocations() {
   try {
     history.replaceState(null, "");
   } catch {}
+
+  // 4. Force JavaScriptCore garbage collection / nursery eden purge
   if (typeof globalThis.gc === "function") {
     try {
       globalThis.gc();
+    } catch {}
+  } else {
+    try {
+      // Allocate small throwaway objects to exhaust Eden and trigger minor/major GC
+      for (let i = 0; i < 4000; i++) {
+        void { x: i };
+      }
     } catch {}
   }
 }
@@ -1501,6 +1554,26 @@ export function releaseFakeCell() {
 
   capturedString = null;
   capturedWords = null;
+
+  if (Array.isArray(keepAlive) && keepAlive.length > 0) {
+    const toDetach = [];
+    for (let i = 0; i < keepAlive.length; i++) {
+      const b = keepAlive[i];
+      if (b instanceof ArrayBuffer) {
+        toDetach.push(b);
+      } else if (b && b.buffer instanceof ArrayBuffer) {
+        toDetach.push(b.buffer);
+      }
+    }
+    if (toDetach.length > 0) {
+      try {
+        const mc = new MessageChannel();
+        mc.port1.postMessage("", toDetach);
+        mc.port1.close();
+        mc.port2.close();
+      } catch (e) {}
+    }
+  }
 
   predecessorWords = null;
   outerGraph = null;
