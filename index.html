@@ -463,6 +463,8 @@
             sessionState = "completed";
         } else if (persistentLock.state === "kernel-dirty") {
             sessionState = "reboot_required";
+        } else if (persistentLock.state === "running") {
+          sessionState = "in_progress";
         }
     }
 

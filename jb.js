@@ -12,7 +12,6 @@ const params = new URLSearchParams(location.search);
 const STOP_BEFORE_DOUBLE = params.get("stop") === "beforedouble";
 const EXECUTION_LOCK_KEY = "raw13g:jb:execution-lock:v2";
 const EXECUTION_OWNER_KEY = "__RAW13G_JB_EXECUTION_OWNER__";
-const EXECUTION_LOCK_TTL_MS = 180000;
 const EXECUTION_HEARTBEAT_MS = 15000;
 
 function createExecutionOwner() {
@@ -49,20 +48,6 @@ function acquireExecutionLock() {
       } catch (errClean) {}
     } catch (e) {
       return { ok: false, reason: "storage-reset-failed" };
-    }
-  }
-
-  if (
-    existing &&
-    existing.owner &&
-    existing.state === "running" &&
-    Date.now() - (existing.updatedAt || existing.startedAt || 0) > EXECUTION_LOCK_TTL_MS
-  ) {
-    try {
-      localStorage.removeItem(EXECUTION_LOCK_KEY);
-      existing = null;
-    } catch (e) {
-      return { ok: false, reason: "stale-lock-reset-failed" };
     }
   }
 
