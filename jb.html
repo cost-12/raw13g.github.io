@@ -318,8 +318,10 @@
             try {
               sessionStorage.setItem("jb_session_state", "completed");
               sessionStorage.removeItem(KEY);
+              localStorage.setItem("jb_last_state", "completed");
+              localStorage.setItem("jb_last_completed_at", String(Date.now()));
             } catch (e) {
-              /* ignore sessionStorage errors */
+              /* ignore storage errors */
             }
             handled = true;
             return;
@@ -327,6 +329,7 @@
           if (txt.includes("KF-DATA-LEFT-DIRTY") || txt.includes("capsLive=0")) {
             try {
               sessionStorage.setItem("jb_session_state", "reboot_required");
+              localStorage.setItem("jb_last_state", "reboot_required");
             } catch (e) {}
           }
           if (!st || st.textContent !== "threw") return;

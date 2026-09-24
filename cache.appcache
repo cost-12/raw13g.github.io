@@ -1,8 +1,8 @@
 CACHE MANIFEST
-# rev 20260924-v11-clean-patches-revert-aio
+# rev 20260924-v12-completed-notice-fix
 
-index.html #0f25fb8e3b427248b933e4cc46666a90f2f5364a778724bf32465dde7b261f9e
-jb.html #940d0d7139b1ed6e57b93fb8ec7a5ce910ed63847363029d79bf05098903bc09
+index.html #f000ef8df82a0971a2cd4da38e3e45c1958ff8fb3e47ddf1e99474ffe9e53666
+jb.html #0eec645915c6803709d9060015a1b3d1bf38073a338bf966b11d6e38dd81834d
 includes/img/logo_raw.png #23cdc5f24ffd3508d2ca7c71fcdae5bd7fbe2718dad9393964957a930f3f02a5
 includes/fonts/material-icons.woff2 #8265f64786397d6b832d1ca0aafdf149ad84e72759fffa9f7272e91a0fb015d1
 includes/fonts/material-icons.ttf #ef149f08bdd2ff09a4e2c8573476b7b0f3fbb15b623954ade59899e7175bedda
@@ -18,8 +18,8 @@ includes/js/legacy-polyfills.js #bbac4c82ae4ae7f8bfc83a7d12402b09b70d52ef60b4d45
 includes/js/mem.js #ee5e52ea8c7ac349f3df4249e6245c6bb41aa9482081b452e629e589dead3b11
 includes/js/ps4_offsets.js #e4f5299d955a1b02950b4ca4f27e2438b55b87b5c92228e7989d8020b34404e5
 includes/js/rpc_worker.js #b0d875a8a190fad88448d2e992b6dd9f10eb497895b70d5845fafe3067d7f20d
-includes/js/jb.js #00fa829b514b2423afb862b65171adf913e5b46a22e3e409eb487d35d046d277
-includes/js/jb.js?v=11 #00fa829b514b2423afb862b65171adf913e5b46a22e3e409eb487d35d046d277
+includes/js/jb.js #ddeec17ce42fdf936da2e53ea25668cd3bea4ecd784f7a982d0f44c71163fad8
+includes/js/jb.js?v=11 #ddeec17ce42fdf936da2e53ea25668cd3bea4ecd784f7a982d0f44c71163fad8
 includes/payloads/GoldHEN/goldhen.bin #df3f27c1b35bc7c40e3a08caab948930914dc7d0301a73b68945cf6ffe40ea12
 includes/payloads/GoldHEN/goldhen_v2.4b18.12.bin #df3f27c1b35bc7c40e3a08caab948930914dc7d0301a73b68945cf6ffe40ea12
 includes/payloads/GoldHEN/goldhen_v2.4b18.10.bin #c6329401d1810e16c84e6474ac30977dbdc951987c10cdb559370de7d59db0b0

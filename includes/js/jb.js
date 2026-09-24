@@ -769,6 +769,9 @@ const WORKER_STATE = {
         finishUI(true);
         try {
           sessionStorage.setItem("jb_session_state", "completed");
+          localStorage.setItem("jb_last_state", "completed");
+          localStorage.setItem("jb_last_completed_at", String(Date.now()));
+          localStorage.setItem("jb_last_flavor", effectiveFlavor || "HEN");
         } catch (e) {}
         return;
       }
@@ -3399,6 +3402,9 @@ const WORKER_STATE = {
                     setStageUI(4, "JAILBREAK CONCLUÍDO — " + effectiveFlavor.toUpperCase() + " ATIVO", "Privilégios root concedidos e " + effectiveFlavor + " em execução! O console vai reiniciar em alguns segundos.", "ok");
                     try {
                       sessionStorage.setItem("jb_session_state", "completed");
+                      localStorage.setItem("jb_last_state", "completed");
+                      localStorage.setItem("jb_last_completed_at", String(Date.now()));
+                      localStorage.setItem("jb_last_flavor", effectiveFlavor || "HEN");
                     } catch (e) {}
                   }
                 }
@@ -3732,9 +3738,17 @@ const WORKER_STATE = {
       finishUI(payloadRunning || alreadyRoot);
       if (payloadRunning || alreadyRoot) {
         sessionStorage.setItem("jb_session_state", "completed");
+        try {
+          localStorage.setItem("jb_last_state", "completed");
+          localStorage.setItem("jb_last_completed_at", String(Date.now()));
+          localStorage.setItem("jb_last_flavor", effectiveFlavor || "HEN");
+        } catch (e) {}
         updateExecutionLock("completed");
       } else if (kernelDataDirty || failCount > 0) {
         sessionStorage.setItem("jb_session_state", "reboot_required");
+        try {
+          localStorage.setItem("jb_last_state", "reboot_required");
+        } catch (e) {}
         updateExecutionLock(kernelDataDirty ? "kernel-dirty" : "failed");
       } else {
         sessionStorage.setItem("jb_session_state", "interrupted");

@@ -332,6 +332,11 @@
         if (targetEl.id === "reloadBtn" || targetEl.id === "clearSessionBtn") return;
         if (targetEl.closest && (targetEl.closest(".btn-secondary") || targetEl.closest(".payload-grid"))) return;
       }
+      if (startBtn.dataset.alreadyCompleted === "1") {
+        if (!confirm("O jailbreak já foi concluído anteriormente e está ativo na memória!\n\nReexecutar o exploit sem reiniciar o PS4 pode causar desligamento súbito (Kernel Panic).\n\nSe o console foi reiniciado, clique em Cancelar e use o botão 'Limpar Sessão'. Deseja iniciar mesmo assim?")) {
+          return;
+        }
+      }
       go();
     }
 
@@ -346,6 +351,12 @@
       try {
         sessionStorage.removeItem(SESSION_KEY);
         sessionStorage.removeItem("ps4-heap-watchdog-reloads");
+        sessionStorage.removeItem("payload_path");
+        sessionStorage.removeItem("payload_flavor");
+        localStorage.removeItem(SESSION_KEY);
+        localStorage.removeItem("jb_last_state");
+        localStorage.removeItem("jb_last_completed_at");
+        localStorage.removeItem("jb_last_flavor");
         localStorage.removeItem("raw13g:jb:execution-lock:v2");
       } catch (err) {}
       location.reload();
@@ -398,8 +409,22 @@
 
     // 4. Session State & Lock Notification
     let sessionState = null;
+    let lastFlavor = "HEN";
     try {
       sessionState = sessionStorage.getItem(SESSION_KEY);
+      if (!sessionState) {
+        sessionState = localStorage.getItem("jb_last_state") || localStorage.getItem(SESSION_KEY);
+      }
+      if (!sessionState) {
+        const lockRaw = localStorage.getItem("raw13g:jb:execution-lock:v2");
+        if (lockRaw) {
+          const lock = JSON.parse(lockRaw);
+          if (lock && lock.state) {
+            sessionState = lock.state;
+          }
+        }
+      }
+      lastFlavor = localStorage.getItem("jb_last_flavor") || sessionStorage.getItem("payload_flavor") || (fwKey && !goldHenAllowed ? "HEN" : "GoldHEN");
     } catch (e) {
       sessionState = null;
     }
@@ -407,13 +432,19 @@
     if (sessionState === "completed") {
       sessionBanner.className = "session-banner success";
       sessionBanner.innerHTML =
-        '<div class="session-banner-title"><span class="material-icons mi-green">check_circle</span> JAILBREAK CONCLUÍDO COM SUCESSO NESTA SESSÃO</div>' +
+        '<div class="session-banner-title"><span class="material-icons mi-green">check_circle</span> JAILBREAK CONCLUÍDO COM SUCESSO (' + lastFlavor.toUpperCase() + ' ATIVO)</div>' +
         '<div class="session-banner-body">' +
-        '  O jailbreak já foi concluído anteriormente e os patches permanecem ativos se o console não foi reiniciado. <b>Se o PS4 já foi desligado/reiniciado, use o botão abaixo para liberar nova execução.</b>' +
+        '  O jailbreak já foi concluído anteriormente e os privilégios root permanecem ativos na memória RAM do console. <b>Não execute novamente sem reiniciar o console.</b> Se o PS4 já foi desligado ou reiniciado, clique no botão <b>Limpar Sessão</b> abaixo para liberar nova execução.' +
         '</div>';
       sessionBanner.classList.remove("is-hidden");
       clearSessionBtn.classList.remove("is-hidden");
-    } else if (sessionState === "reboot_required") {
+      clearSessionBtn.innerHTML = '<span class="material-icons mi-sm">restart_alt</span> Limpar Sessão (Console Reiniciado)';
+
+      startBtn.innerHTML = '<span class="material-icons mi-green">verified</span> CONSOLE JÁ DESBLOQUEADO';
+      startBtn.style.background = "linear-gradient(135deg, #059669 0%, #047857 100%)";
+      startBtn.style.borderColor = "#10b981";
+      startBtn.dataset.alreadyCompleted = "1";
+    } else if (sessionState === "reboot_required" || sessionState === "kernel-dirty") {
       sessionBanner.className = "session-banner bad";
       sessionBanner.innerHTML =
         '<div class="session-banner-title"><span class="material-icons mi-red">warning</span> REINÍCIO OBRIGATÓRIO DO PS4</div>' +
@@ -422,7 +453,7 @@
         '</div>';
       sessionBanner.classList.remove("is-hidden");
       clearSessionBtn.classList.remove("is-hidden");
-    } else if (sessionState === "in_progress") {
+    } else if (sessionState === "in_progress" || sessionState === "running") {
       sessionBanner.className = "session-banner warn";
       sessionBanner.innerHTML =
         '<div class="session-banner-title"><span class="material-icons mi-warn mi-spin">sync</span> EXECUÇÃO ANTERIOR EM ANDAMENTO</div>' +
