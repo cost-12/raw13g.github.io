@@ -515,12 +515,21 @@ const WORKER_STATE = {
     setStageUI(1, "ETAPA 1/4: WebKit Exploit", "Estabilizando layout de heap e estabelecendo primitiva ARW...");
     await new Promise((r) => setTimeout(r, 0));
 
+    const maxAttemptsParam = (function () {
+      try {
+        const q = new URLSearchParams(location.search).get("attempts");
+        const n = q ? parseInt(q, 10) : 0;
+        if (n >= 1 && n <= 4) return n;
+      } catch (e) {}
+      return 1;
+    })();
+
     const PRIMITIVE_LOUD = /FAIL|ERROR|THREW|RETRY|ABORT|PASS/i;
     const carrier = await establishPrimitive({
-      maxAttempts: 4,
+      maxAttempts: maxAttemptsParam,
       onEvent: (t, d, a) => {
         if (a != null) {
-          updateSub("Tentativa " + a + "/4: Ajustando memória e ArrayBuffers (" + t + ")...");
+          updateSub("Tentativa " + a + "/" + maxAttemptsParam + ": Ajustando memória e ArrayBuffers (" + t + ")...");
         }
         (PRIMITIVE_LOUD.test(t) ? mark : trace)(
           t,

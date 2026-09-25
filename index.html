@@ -331,7 +331,10 @@
         if (extra) target += "&" + extra;
       }
       if (!target.includes("slots=")) {
-        target += "&slots=4000000";
+        target += "&slots=2500000";
+      }
+      if (!target.includes("attempts=")) {
+        target += "&attempts=1";
       }
       if (!target.includes("log=")) {
         target += "&log=1";
