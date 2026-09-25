@@ -833,6 +833,7 @@ function loadHistoryCritical() {
   let candidate = null;
   let rwHeaderCaptured = false;
   let rwVectorTouched = false;
+  let stage = "history-state";
   try {
     result = history.state;
     compositionLength = result.length;
@@ -861,6 +862,7 @@ function loadHistoryCritical() {
     result[DUPLICATE_INDEX] = undefined;
     result = null;
 
+    stage = "candidate-read";
     readBytes(rwHeader, candidate, CELL_BYTES);
     rwHeaderCaptured = true;
 
@@ -1137,6 +1139,7 @@ function loadHistoryCritical() {
       clearPredecessor();
     } catch {}
     compositionError = error;
+    compositionErrorStage = stage;
     compositionState = -1;
   }
 }
