@@ -1,5 +1,5 @@
 CACHE MANIFEST
-# rev 20260924-v13-compat-banner-spacing
+# rev 20260925-v14-ps4hen-1400-support
 
 index.html #44a080f763b9b5663271fcfa0f719f6bad411bb7823522bb875b9837658fc3c1
 jb.html #0eec645915c6803709d9060015a1b3d1bf38073a338bf966b11d6e38dd81834d
@@ -27,8 +27,8 @@ includes/payloads/GoldHEN/goldhen_v2.4b18.9.bin #ab1849d66816a9f4a3d155b06b51cdc
 includes/payloads/GoldHEN/goldhen_v2.4b18.8.bin #45e3c003cc1e61ce6b63cb68a9bc626330394fe564155a05f2a9307de27bf068
 includes/payloads/GoldHEN/goldhen_v2.4b18.7.bin #0f4f68084b56724b00418b30f494bb2737ee9bc263def9e3cbf042eabdbbbae3
 includes/payloads/GoldHEN/goldhen_v2.4b18.6.bin #da8310e8e8f1fa6d68f42274043fef67326370c5affa4b316961be73bd97d10e
-includes/payloads/HEN/payload2.bin #fab982aea6c9b2aa9d590eae4adb1530f7b4ccd32322c097d6e3c2527bbd6135
-includes/payloads/HEN/HEN.bin #c05f6097dbc0707e8ec2fb5443ee507da6ac6e79c6fa8e9f78544658710efeff
+includes/payloads/HEN/payload2.bin #c6605b96601a09d6e495894455cc0396d25822ed62534085cde3adac55a0f97f
+includes/payloads/HEN/HEN.bin #c6605b96601a09d6e495894455cc0396d25822ed62534085cde3adac55a0f97f
 patches/1100.bin #15497a2b748dafd49bfb89c51ed048d0c5ba3c5092c5254da46dd4443f80983b
 patches/1102.bin #4634f7bcdaeea7a48307a6b0c2f0575dc131d4fcf15138c6678f18b4f19058fd
 patches/1150.bin #d4e3a514e462b973842e634eba6c90136dbfd864a208f8c39c229055e5f2e1f9
