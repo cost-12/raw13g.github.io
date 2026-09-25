@@ -171,6 +171,13 @@
 
 <!-- Scripts com Métodos Modulares -->
 <script src="includes/js/legacy-polyfills.js"></script>
+<script>
+  try {
+    if (typeof history !== "undefined" && typeof history.replaceState === "function") {
+      history.replaceState(null, "");
+    }
+  } catch (e) {}
+</script>
 <script type="module">
   import { detectFw } from "./includes/js/checkFw.js";
   import { 
@@ -322,6 +329,9 @@
         p.delete("payload_path");
         const extra = p.toString();
         if (extra) target += "&" + extra;
+      }
+      if (!target.includes("slots=")) {
+        target += "&slots=4000000";
       }
       if (!target.includes("log=")) {
         target += "&log=1";

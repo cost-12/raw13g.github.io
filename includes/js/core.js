@@ -1,3 +1,9 @@
+try {
+  if (typeof history !== "undefined" && typeof history.replaceState === "function") {
+    history.replaceState(null, "");
+  }
+} catch (e) {}
+
 // Source lineage: Bel's OnePS / OOMfie implementation.
 // Original repositories: https://github.com/thebelx/OnePS and https://github.com/thebelx/oomfietest
 // Historical reference: oomfietest commit 3d7955d7b85982d5f6160adf9ba6cd56278fc300.
@@ -24,7 +30,7 @@ const CARRIER_SLOTS = (function () {
     const n = q ? parseInt(q, 10) : 0;
     if (n >= 100000 && n <= 40000000) return n;
   } catch (e) {}
-  return 12000000;
+  return 4000000;
 })();
 const CARRIER_BYTES = CARRIER_SLOTS * 8;
 const CAPTURE_DELAY_MS = 50;
@@ -532,6 +538,11 @@ function finishEarlySafeAttempt(tag, extra, reason) {
 }
 
 function resetAttemptState() {
+  try {
+    if (typeof history !== "undefined" && typeof history.replaceState === "function") {
+      history.replaceState(null, "");
+    }
+  } catch (e) {}
   referenceTarget = null;
   rwBuffer = null;
   rwView = null;

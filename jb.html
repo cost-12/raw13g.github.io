@@ -88,6 +88,11 @@
 
   <!-- Expose Global Helper API for jb.js to interact with UI seamlessly -->
   <script>
+    try {
+      if (typeof history !== "undefined" && typeof history.replaceState === "function") {
+        history.replaceState(null, "");
+      }
+    } catch (e) {}
     (function () {
       var stateEl = document.getElementById("state");
       var substateEl = document.getElementById("substate");

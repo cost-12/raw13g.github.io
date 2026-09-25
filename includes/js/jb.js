@@ -1,3 +1,9 @@
+try {
+  if (typeof history !== "undefined" && typeof history.replaceState === "function") {
+    history.replaceState(null, "");
+  }
+} catch (e) {}
+
 import { establishPrimitive } from "./core.js?v=10";
 import { installWindowP, pairStatus } from "./mem.js";
 import { int64 } from "./int64.js";
@@ -46,12 +52,17 @@ function acquireExecutionLock() {
   }
 
   if (existing && existing.owner) {
-    return {
-      ok: false,
-      reason: existing.state || "already-running",
-      owner: existing.owner,
-      startedAt: existing.startedAt,
-    };
+    const isStale =
+      typeof existing.startedAt === "number" &&
+      Date.now() - existing.startedAt > 45000;
+    if (!isStale) {
+      return {
+        ok: false,
+        reason: existing.state || "already-running",
+        owner: existing.owner,
+        startedAt: existing.startedAt,
+      };
+    }
   }
 
   const owner = createExecutionOwner();
