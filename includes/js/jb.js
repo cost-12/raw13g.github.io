@@ -461,6 +461,8 @@ const WORKER_STATE = {
     // A hard KP (a total reclaim miss that faults inside the cancel walk)
     // cannot be caught here and still needs a reboot -- this only recovers
     // the benign, detectable misses.
+    const AUTO_RETRY_ENABLED =
+      params.get("autoretry") !== "0" && params.get("retry") !== "0";
     const RETRY_MAX = params.get("retry")
       ? parseInt(params.get("retry"), 10)
       : 8;
@@ -478,6 +480,10 @@ const WORKER_STATE = {
       } catch (e) {}
     };
     const retryBenign = (why) => {
+      if (!AUTO_RETRY_ENABLED) {
+        mark("AUTO-RETRY-DISABLED", "why=" + why + " (diagnostic mode via ?autoretry=0)");
+        return false;
+      }
       const n = retryCount();
       if (n >= RETRY_MAX) {
         mark(
@@ -549,6 +555,7 @@ const WORKER_STATE = {
         "   (promotion off: the 137 MB stays pinned)",
     );
     mark("PRIMITIVE-OK", "");
+    clearRetry();
     setStageUI(1, "ETAPA 1/4: WebKit Primitives Prontas", "Primitivas de leitura/escrita ARW estabelecidas com sucesso.", "ok");
 
     executionHeartbeat = setInterval(
@@ -3713,7 +3720,29 @@ const WORKER_STATE = {
     } catch (error_) {}
     mark("THREW", e && e.message ? e.message : String(e));
     state("threw", "bad");
+
+    const isStage1BenignMiss =
+      !p &&
+      currentStage === 1 &&
+      e &&
+      e.message &&
+      (e.message.includes("attempt-ceiling") ||
+        e.message.includes("core: gave up") ||
+        e.message.includes("placement"));
+
+    if (isStage1BenignMiss && retryBenign("heap-placement-miss")) {
+      setStageUI(
+        1,
+        "Layout de heap inconsistente",
+        "Recarregando para renovar a heap (" + retryCount() + "/" + RETRY_MAX + ")...",
+        "warn",
+      );
+      releaseExecutionLockIfSafe(false);
+      return;
+    }
+
     setStageUI(currentStage || 1, "FALHA NA EXECUÇÃO DO EXPLOIT", (e && e.message) || String(e), "bad");
+    releaseExecutionLockIfSafe(false);
     if (window.showExecutionReset) {
       const isCeiling = e && e.message && e.message.includes("attempt-ceiling");
       window.showExecutionReset(isCeiling ? "attempt-ceiling" : "failed");
