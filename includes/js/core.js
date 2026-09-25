@@ -53,6 +53,7 @@ const _gOverride = (function () {
 const _g = (name, dflt) =>
   typeof _gOverride[name] === "number" ? _gOverride[name] : dflt;
 if (typeof _gOverride.drain === "number") DRAIN_COUNT = _gOverride.drain;
+const HISTORY_LOAD_DELAY_MS = _g("histdelay", 0);
 
 const DRAIN_SIZE = _g("drainsz", 0x10000);
 const SLAB_SIZE = _g("slab", 0x400000);
@@ -1146,6 +1147,18 @@ function loadHistoryCritical() {
 
 function runGroomAndLoad() {
   let stage = "enter";
+  const finishHistoryLoad = () => {
+    try {
+      stage = "history-load";
+      loadHistoryCritical();
+    } catch (error) {
+      retrySafe = true;
+      compositionError = error;
+      compositionErrorStage = stage;
+      compositionState = -1;
+    }
+    reportComposition();
+  };
   try {
     emit("SSV-GROOM-ENTER", `n=${DRAIN_COUNT}`);
     const channel = new MessageChannel();
@@ -1190,8 +1203,13 @@ function runGroomAndLoad() {
       earlyHole,
       finalHole,
     ]);
-    stage = "history-load";
-    loadHistoryCritical();
+    if (HISTORY_LOAD_DELAY_MS > 0) {
+      emit("HISTORY-LOAD-DELAY", `ms=${HISTORY_LOAD_DELAY_MS}`);
+      setTimeout(finishHistoryLoad, HISTORY_LOAD_DELAY_MS);
+      return;
+    }
+    finishHistoryLoad();
+    return;
   } catch (error) {
     try {
       clearPredecessor();
