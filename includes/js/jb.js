@@ -530,7 +530,8 @@ const WORKER_STATE = {
       return 1;
     })();
 
-    const PRIMITIVE_LOUD = /FAIL|ERROR|THREW|RETRY|ABORT|PASS/i;
+    const PRIMITIVE_LOUD =
+      /FAIL|ERROR|THREW|RETRY|ABORT|PASS|ADDROF|CARRIER|SSV|GROOM|PREDECESSOR/i;
     const carrier = await establishPrimitive({
       maxAttempts: maxAttemptsParam,
       onEvent: (t, d, a) => {
@@ -3730,14 +3731,21 @@ const WORKER_STATE = {
         e.message.includes("core: gave up") ||
         e.message.includes("placement"));
 
-    if (isStage1BenignMiss && retryBenign("heap-placement-miss")) {
+    if (isStage1BenignMiss) {
+      mark(
+        "HEAP-PLACEMENT-MISS",
+        "alinhamento pendente -- feche completamente o navegador (Botao PS) antes da proxima tentativa",
+      );
       setStageUI(
         1,
-        "Layout de heap inconsistente",
-        "Recarregando para renovar a heap (" + retryCount() + "/" + RETRY_MAX + ")...",
+        "Alinhamento de heap pendente",
+        "Feche o navegador pelo Botão PS e abra novamente para uma tentativa com heap 100% limpo.",
         "warn",
       );
       releaseExecutionLockIfSafe(false);
+      if (window.showExecutionReset) {
+        window.showExecutionReset("failed");
+      }
       return;
     }
 

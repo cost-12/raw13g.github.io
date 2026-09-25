@@ -370,19 +370,14 @@
             sessionStorage.setItem("jb_session_state", "interrupted");
           } catch (e) {}
           var rec = spendBudget();
-          if (!rec || rec.n > MAX) {
-            if (window.showExecutionReset) window.showExecutionReset("failed");
-            return;
-          }
+          if (window.showExecutionReset) window.showExecutionReset("failed");
           if (window.setStage) {
-            window.setStage(1, "Layout de heap inconsistente", "Recarregando para renovar a heap (" + rec.n + "/" + MAX + ")...", "warn");
+            window.setStage(1, "Layout de heap pendente", "Feche o navegador pelo Botão PS e abra novamente para tentar com heap limpo.", "warn");
           } else {
-            st.textContent = "heap layout missed -- reloading for a fresh heap (" + rec.n + "/" + MAX + ")...";
+            st.textContent = "heap layout missed -- close browser to clean heap";
             st.className = "warn";
           }
-          setTimeout(function () {
-            location.reload();
-          }, 3500);
+          return;
         } catch (e) {
           /* ignore interval tick errors */
         }
