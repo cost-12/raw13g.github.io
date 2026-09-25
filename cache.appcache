@@ -1,5 +1,5 @@
 CACHE MANIFEST
-# rev 20260925-v15-ps4hen-1400-aio632
+# rev 20260925-v16-libkernel-elf-discovery
 
 index.html #44a080f763b9b5663271fcfa0f719f6bad411bb7823522bb875b9837658fc3c1
 jb.html #0eec645915c6803709d9060015a1b3d1bf38073a338bf966b11d6e38dd81834d
@@ -18,8 +18,8 @@ includes/js/legacy-polyfills.js #bbac4c82ae4ae7f8bfc83a7d12402b09b70d52ef60b4d45
 includes/js/mem.js #ee5e52ea8c7ac349f3df4249e6245c6bb41aa9482081b452e629e589dead3b11
 includes/js/ps4_offsets.js #5f2196dc66f5ae3f67a4956a226465a4c0d05523ba8f7e996231a99c5754c6aa
 includes/js/rpc_worker.js #b0d875a8a190fad88448d2e992b6dd9f10eb497895b70d5845fafe3067d7f20d
-includes/js/jb.js #ddeec17ce42fdf936da2e53ea25668cd3bea4ecd784f7a982d0f44c71163fad8
-includes/js/jb.js?v=11 #ddeec17ce42fdf936da2e53ea25668cd3bea4ecd784f7a982d0f44c71163fad8
+includes/js/jb.js #6a1a468e7f042798e20e6b8a83b2ef285ceeb7ca2d8e5217829ec4347d855a63
+includes/js/jb.js?v=11 #6a1a468e7f042798e20e6b8a83b2ef285ceeb7ca2d8e5217829ec4347d855a63
 includes/payloads/GoldHEN/goldhen.bin #df3f27c1b35bc7c40e3a08caab948930914dc7d0301a73b68945cf6ffe40ea12
 includes/payloads/GoldHEN/goldhen_v2.4b18.12.bin #df3f27c1b35bc7c40e3a08caab948930914dc7d0301a73b68945cf6ffe40ea12
 includes/payloads/GoldHEN/goldhen_v2.4b18.10.bin #c6329401d1810e16c84e6474ac30977dbdc951987c10cdb559370de7d59db0b0
