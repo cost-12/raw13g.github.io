@@ -9,7 +9,7 @@ try {
 // Historical reference: oomfietest commit 3d7955d7b85982d5f6160adf9ba6cd56278fc300.
 // Subsequent modifications by the Raw13G authors.
 
-let DRAIN_COUNT = 512;
+let DRAIN_COUNT = 256;
 const AUTO_RETRY_DELAY_MS = 50;
 
 const K = 2;
