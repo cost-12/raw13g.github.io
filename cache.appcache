@@ -1,5 +1,5 @@
 CACHE MANIFEST
-# rev 20260925-v26-ssv-diagnostic-probe
+# rev 20260925-v27-ssv-miss-diagnostics
 
 index.html #fe6c609af6acf6bdf1015c9400df94ed5fa1475a46f57638860a067d648b8e98
 jb.html #c20eb825a81bbc3b11e877484b04cb1c21659bc01a51baf920096fecad6570a5
@@ -18,8 +18,8 @@ includes/js/legacy-polyfills.js #bbac4c82ae4ae7f8bfc83a7d12402b09b70d52ef60b4d45
 includes/js/mem.js #ee5e52ea8c7ac349f3df4249e6245c6bb41aa9482081b452e629e589dead3b11
 includes/js/ps4_offsets.js #5f2196dc66f5ae3f67a4956a226465a4c0d05523ba8f7e996231a99c5754c6aa
 includes/js/rpc_worker.js #b0d875a8a190fad88448d2e992b6dd9f10eb497895b70d5845fafe3067d7f20d
-includes/js/jb.js #a65512159181ab76ced746bfc8e2694be3a4e13aba49b9cbfda252803e464c2f
-includes/js/jb.js?v=11 #a65512159181ab76ced746bfc8e2694be3a4e13aba49b9cbfda252803e464c2f
+includes/js/jb.js #f3b4f2b168695af52b18100627f8472ebf23270a6db99223f80bda2be2770194
+includes/js/jb.js?v=11 #f3b4f2b168695af52b18100627f8472ebf23270a6db99223f80bda2be2770194
 includes/payloads/GoldHEN/goldhen.bin #df3f27c1b35bc7c40e3a08caab948930914dc7d0301a73b68945cf6ffe40ea12
 includes/payloads/GoldHEN/goldhen_v2.4b18.12.bin #df3f27c1b35bc7c40e3a08caab948930914dc7d0301a73b68945cf6ffe40ea12
 includes/payloads/GoldHEN/goldhen_v2.4b18.10.bin #c6329401d1810e16c84e6474ac30977dbdc951987c10cdb559370de7d59db0b0
