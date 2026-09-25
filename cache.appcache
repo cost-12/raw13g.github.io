@@ -1,7 +1,7 @@
 CACHE MANIFEST
-# rev 20260925-v27-ssv-miss-diagnostics
+# rev 20260925-v28-carrier-2.8m-gc-optimization
 
-index.html #fe6c609af6acf6bdf1015c9400df94ed5fa1475a46f57638860a067d648b8e98
+index.html #ca51454c5f209fb3336dbced81a6d0d69e6d0482009bf6175107be76bf882aca
 jb.html #c20eb825a81bbc3b11e877484b04cb1c21659bc01a51baf920096fecad6570a5
 includes/img/logo_raw.png #23cdc5f24ffd3508d2ca7c71fcdae5bd7fbe2718dad9393964957a930f3f02a5
 includes/fonts/material-icons.woff2 #8265f64786397d6b832d1ca0aafdf149ad84e72759fffa9f7272e91a0fb015d1
@@ -11,8 +11,8 @@ includes/css/style.css #246a0b1eddaa2d6fb0b4faf043a3f76a7ba6525f10e4da5a2fd2005c
 includes/css/jb.css #4e45147c3090e2bff15a405895fe287ac58ac7d9ae066380a79b259f39a9cce6
 includes/js/checkFw.js #8839588ceace167f41b1ee065af2d990fea06470dd2139d7aa9951b9bba4fcaa
 includes/js/HENs.js #ccd8e2d545af798b73b7af9831963ada74ce243bb17558666b65ac14c1ba81b6
-includes/js/core.js #895e8e00d1240a967ba8ddaf81b969e44490da2383d7dd5cefe4c746e46b6255
-includes/js/core.js?v=10 #895e8e00d1240a967ba8ddaf81b969e44490da2383d7dd5cefe4c746e46b6255
+includes/js/core.js #33d378bcbdb945be4b77efd9c8805ba18cb2cb6caab60a8ed306bd563fa72764
+includes/js/core.js?v=10 #33d378bcbdb945be4b77efd9c8805ba18cb2cb6caab60a8ed306bd563fa72764
 includes/js/int64.js #c198cd901478664e22d842dac10fbd4db582d55b14333a80b7752089aabe5fe2
 includes/js/legacy-polyfills.js #bbac4c82ae4ae7f8bfc83a7d12402b09b70d52ef60b4d458989039c4237c179c
 includes/js/mem.js #ee5e52ea8c7ac349f3df4249e6245c6bb41aa9482081b452e629e589dead3b11

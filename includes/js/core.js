@@ -30,7 +30,7 @@ const CARRIER_SLOTS = (function () {
     const n = q ? parseInt(q, 10) : 0;
     if (n >= 100000 && n <= 40000000) return n;
   } catch (e) {}
-  return 4500000;
+  return 2800000;
 })();
 const CARRIER_BYTES = CARRIER_SLOTS * 8;
 const CAPTURE_DELAY_MS = 50;
@@ -798,6 +798,7 @@ function runAddrofCapture() {
     copiedLength = capturedString.length;
     for (let i = 0; i < 16; i++)
       capturedWords[i] = capturedString.charCodeAt(7 + i);
+    capturedString = null;
     captureState = 1;
   } catch (error) {
     captureError = error;
