@@ -531,7 +531,7 @@ const WORKER_STATE = {
     })();
 
     const PRIMITIVE_LOUD =
-      /FAIL|ERROR|THREW|RETRY|ABORT|PASS|ADDROF|CARRIER|SSV|GROOM|PREDECESSOR/i;
+      /FAIL|ERROR|THREW|RETRY|ABORT|PASS|ADDROF|CARRIER|SSV|GROOM|PREDECESSOR|DELAY|HIST/i;
     const carrier = await establishPrimitive({
       maxAttempts: maxAttemptsParam,
       onEvent: (t, d, a) => {

