@@ -1,18 +1,12 @@
-[MAHI68] **Primeira identificação: o projeto é o ps4debug-NG, não o GoldHEN propriamente dito.**
+# Auditoria Técnica e Arquitetural: ps4debug-NG v1.3.3
 
-O repositório implementa um payload de depuração para PS4 desbloqueado, compatível com GoldHEN e PS4-HEN. Ele combina um servidor TCP em espaço de usuário, um módulo de acesso ao kernel e um instalador que reúne os componentes em um único binário.
+O ps4debug-NG é um payload avançado de depuração para PlayStation 4 desbloqueado, compatível com GoldHEN e PS4-HEN. Ele combina um servidor TCP em espaço de usuário, um módulo de acesso ao kernel e um instalador que reúne os componentes em um único binário de release.
 
-A versão encontrada é **1.3.3**, marcada no Git como release, com suporte declarado a 38 versões de firmware entre 5.05 e 14.00. O código também anuncia leitura e escrita de memória, execução remota de funções, depuração de threads, breakpoints, carregamento de ELF e mecanismos avançados de varredura de memória.
+A versão integrada ao host RAW13G é a **1.3.3**, validada com suporte declarado a 38 versões de firmware entre 5.05 e 14.00. O payload fornece leitura e escrita de memória, execução remota de funções (RPC), depuração de threads, breakpoints de hardware e software, carregamento dinâmico de ELF e mecanismos de varredura de memória.
 
-[MAHI68]
+---
 
-# Auditoria técnica: ps4debug-NG v1.3.3
-
-**Diretório:** `/home/thiago/ps4debug-NG`  
-**Data da análise:** 02/11/2026  
-**Método:** Inspeção estática de código-fonte, documentação, configuração de compilação, estrutura Git e análise estrutural do binário de release.
-
-## 1. Identificação e arquitetura
+## 1. Identificação e Arquitetura
 
 Primeiro, uma distinção importante: o projeto encontrado não é o código-fonte do GoldHEN. É o **ps4debug-NG**, um payload de depuração desenvolvido para funcionar em consoles PS4 desbloqueados, inclusive em ambientes com PS4-HEN e GoldHEN.
 

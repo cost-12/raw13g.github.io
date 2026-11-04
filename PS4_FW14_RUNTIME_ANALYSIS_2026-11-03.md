@@ -119,3 +119,43 @@ A atualização v69 foi descarregada pelo navegador. Entretanto, os eventos `LEG
 Não recomendo novas tentativas nesta inicialização. As duas execuções que avançaram deixaram a etapa de resolução ELF sem conclusão e o lock registrou novas páginas tentando iniciar enquanto o proprietário anterior ainda constava como `running`. Faça encerramento completo do navegador e reinicialização completa do console antes de qualquer nova sessão. A prioridade de investigação é entender por que a busca ELF não registra conclusão, sem aumentar alocações nem alterar o perfil de memória simultaneamente.
 
 A suíte local permanece em 78/78 testes aprovados e `git diff --check` passou. Nenhum commit, push, deploy, payload ou execução adicional foi realizado durante esta análise.
+
+
+---
+
+# Atualização de Validação em Hardware: 04/11/2026
+
+## Resumo dos Avanços e Marcos Alcançados
+
+Nas sessões de 04/11/2026, os gargalos identificados na busca ELF e na estabilidade do kernel foram superados e validados diretamente no hardware do PS4 (Firmware 14.00, console em `192.168.100.183`):
+
+1. **Resolução Completa de libkernel e ROP**:
+   - A busca de base do `libkernel` foi concluída com sucesso em `0x835efc000` via importação de `k__error` (`0x1de70`) e validação de magic `0x90ec`.
+   - Todos os 15 gadgets ROP requeridos foram atestados (`verified=15/15`).
+   - Todos os 24 stubs de syscalls foram gerados dinamicamente sem falhas (`found=24 missing=0`).
+
+2. **Vazamento de KBASE e Transição HX**:
+   - O endereço base do kernel (`kbase`) foi vazado com sucesso em `0xFFFFFFFF84EF0000` (`18446744071928135680`).
+
+3. **Diagnóstico e Eliminação do Kernel Panic (Fatal Trap 12)**:
+   - *Causa raiz:* No run `1793775198841-748853`, a rotina de spray UAF de kevent em `hx_kevent.js` esgotou os candidatos sem encontrar um knote válido (`fin: D no kva`). Ao lançar exceção JS e fechar o WebKit, o kernel varreu `rootKq->kq_knlist` com um knote forjado não desalocado, disparando um *Fatal trap 12: page fault while in kernel mode*.
+   - *Correção aplicada (Anti-Panic Guard):* Inserida chamada explícita de `kevent(rootKq, ...)` com a flag `EV_DELETE` (`0x0002`) antes de abortar. Nos ciclos seguintes com miss de spray (run `1793775786442-432087`), o navegador falhou de forma controlada sem derrubar o console (0% de pânico, ping de 1.6 ms mantido).
+
+4. **Container `hen.bin` Recompilado com GoldHEN v2.4b18.13**:
+   - O container binário de 562.240 bytes foi reconstruído:
+     - Offset `0x00000` a `0x0ffff`: Loader de bootstrap e syscall 11 (`sys_kexec`).
+     - Offset `0x10000` a `0x58948`: Binário raw oficial do **GoldHEN v2.4b18.13** (297.496 bytes).
+     - Deslocamento de salto em `0x51e6`: Repontado de `0xc338` (entrada v12 em `0x10de3`) para `0xcba8` (entrada v13 em `0x11653`).
+     - Novo hash SHA-256 do container: `f83d3a68c8a5d38f3544e3102bf04b13d357d766e7101ffee4b9d37ee60695d6`.
+
+5. **Execução Integral Bem-Sucedida (`Run 1793776302430-446544`)**:
+   - Primitiva WebKit alcançada na tentativa 2 (`SSV-RETURNED-CLEARED`).
+   - kbase vazado em `0xFFFFFFFF84EF0000`.
+   - Spray de kevent alinhou de primeira.
+   - Container `hen.bin` disparado via syscall 11 com retorno `direct_rc=0`.
+   - **Daemons Ativos no Hardware:**
+     - `Porta 2121`: Servidor FTP do GoldHEN v2.2 ativo (`220 GoldHEN FTP server v2.2`).
+     - `Porta 3232`: Servidor KLog transmitindo logs de kernel em tempo real.
+     - `Porta 9090`: BinLoader operacional.
+     - `Porta 744`: **ps4debug-NG v1.3.3** injetado e atestado via `scripts/ps4debug-probe.mjs` (protocolo 1.3 verificado).
+     - Ativação de `AIO_Fix_Enabled = 1` diretamente no arquivo `/data/GoldHEN/config.ini` via FTP.

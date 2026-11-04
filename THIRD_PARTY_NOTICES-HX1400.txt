@@ -49,3 +49,10 @@ The RAW13G project does not relicense this payload or its source. The
 corresponding source remains available in the upstream repository at the
 pinned commit above. Preserve this notice, the license text, and the source
 reference when redistributing the binary.
+
+
+ps4-fan-threshold (includes/payloads/Tools/fan-thresholds/)
+-----------------------------------------------------------------------
+Payloads for Syscon thermal threshold management (60 °C, 70 °C, 80 °C, 85 °C).
+Derived from open-source PS4 Fan Control utilities.
+Binaries differ exclusively at offset 0x2318 (target temperature byte).
