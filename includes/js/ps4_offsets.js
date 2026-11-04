@@ -643,23 +643,87 @@ PS4["13.04"] = Object.assign({}, PS4["13.00"], {
     "kpatch=1302.bin-shared-HW-PROVEN payload=payload2.bin-PS4HEN(works<=13.52) bug=663",
 });
 
-PS4["14.00"] = Object.assign({}, PS4["13.04"], {
-  alias_of: "13.04",
+PS4["14.00"] = Object.assign({}, PS4["13.52"], {
+  alias_of: "13.52-webkit",
+  kernel_supported: false,
+  stage1_only: true,
 
-  k_prison0: 0x111fa18,
-  k_rootvnode: 0x2136e90,
-  k_sysent: 0x1102b70,
-  k_jmp_rsi: 0x47b31,
-  k_kl_lock: 0xe6c60,
+  // Runtime captures from Sentrix show the 14.00 WebKit module using the
+  // 13.52 WebKit gadget family. The successful kernel chain is HX1400 and
+  // obtains its kernel tables from hx_tables.js, not these legacy RAW13G RVAs.
+  // Keep every unverified kernel address undefined until the HX path is ported.
+  k_stubs: undefined,
+  wk___imp_pthread_create: undefined,
+  k_pthread_create: undefined,
+  k_idt_rsvd: undefined,
+  k_sysctl_handle_int: undefined,
+  k_jmp_rsi: undefined,
+  k_kl_lock: undefined,
+  k_evf_cv: undefined,
+  k_sysent: undefined,
+  k_sysent_661: undefined,
+  k_oid_kern_file: undefined,
+  k_oid_maxfilesperproc: undefined,
+  k_oid_maxprocperuid: undefined,
+  k_oid_maxfiles: undefined,
+  k_arg1_maxfilesperproc: undefined,
+  k_arg1_maxprocperuid: undefined,
+  k_arg1_maxfiles: undefined,
+  k_prison0: undefined,
+  k_rootvnode: undefined,
 
   kpatch: "1400.bin",
   payload: "includes/payloads/HEN/payload2.bin",
   payload_hen: "includes/payloads/HEN/payload2.bin",
+  payload_goldhen: undefined,
+
+  // Experimental RAW13G Stage 1 profile transcribed from the successful
+  // Sentrix 14.00 capture (mem=1). This is a tuning reference, not proof
+  // that the external HX kernel chain is portable to the legacy RAW13G stages.
+  groom: {
+    slots: 9100000,
+    attempts: 3,
+    drain: 48,
+    drainsz: 0x8000,
+    slab: 0x300000,
+    histdelay: 0,
+    bfly: 0x60000,
+    sep: 0x8000,
+    early: 0x60000,
+    guard: 0x70000,
+    pred: 0x60000,
+    final: 0x60000,
+  },
+
+  // Effective equivalent of SilverPS4HEN's index.html route:
+  // mem=1, slots=8700000 and g=drain:96. RAW13G selects this profile in jb.js
+  // because its core does not itself implement Silver's HX_MEM selector.
+  // The original Sentrix-derived 9.1M / drain-48 profile remains available
+  // as the fallback when mem=1 is not requested.
+  groomProfiles: {
+    mem1: {
+      profile: "silverps4hen-mem1",
+      slots: 8700000,
+      attempts: 4,
+      drain: 96,
+      drainsz: 0x8000,
+      slab: 0x300000,
+      histdelay: 0,
+      bfly: 0x60000,
+      sep: 0x8000,
+      early: 0x60000,
+      guard: 0x70000,
+      pred: 0x60000,
+      final: 0x60000,
+    },
+  },
+
   fw_status:
-    "state=OFFSETS-OFFICIAL-Al-Azif shares=13.04 " +
-    "kernel_rvas=MEASURED-Scene-Collective-commit-d077fb4 " +
-    "kpatch=1400.bin-AIO-BUILT-632B-10-sites " +
-    "payload=payload2.bin-PS4HEN bug=663",
+    "state=14.00-HX1400-reference-from-Sentrix-capture " +
+    "webkit=13.52-identical kernel=HX1400-hx_tables.js " +
+    "RAW13G=stage1-only-until-HX-port local-HW-validation=not-attested " +
+    "kpatch=1400.bin-632B-SHA256-165d2ad9-matches-Sentrix-PKB " +
+    "groom=mem1-reference-slots-9.1M-drain-48x32K-slab-3M",
 });
 
 PS4["11.02"] = Object.assign({}, PS4["11.00"], {
@@ -733,15 +797,20 @@ export function validateOffsets(off, fwKey) {
     return { ok: false, errors: ["Tabela de offsets inexistente para o firmware" + (fwKey ? ` (${fwKey})` : "")] };
   }
 
-  // 1. Validar se todas as chaves essenciais de userland e kernel de base estão presentes
+  // 1. Validate the complete table, except for kernel-only keys explicitly
+  // withheld by a Stage-1-only firmware profile.
+  const deferredKernelKeys = new Set(["k_evf_cv", "k_sysent_661", "k_jmp_rsi"]);
   for (const k of REQUIRED_KEYS) {
+    if (off.stage1_only === true && off.kernel_supported === false && deferredKernelKeys.has(k)) {
+      continue;
+    }
     if (off[k] === undefined || off[k] === null) {
       errors.push(`Chave obrigatória ausente: ${k}`);
     }
   }
 
   // 2. Se for um firmware 13.x ou 14.x suportado pelo exploit de kernel, validar chaves de kernel (NEED_K)
-  if (fwKey?.match(/^(13|14)\./)) {
+  if (fwKey?.match(/^(13|14)\./) && !(off.stage1_only === true && off.kernel_supported === false)) {
     const NEED_K = [
       "k_idt_rsvd",
       "k_oid_kern_file",

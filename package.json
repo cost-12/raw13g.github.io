@@ -1,0 +1,21 @@
+{
+  "name": "raw13g.github.io",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PS4 14.00 BD-J exploit project",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node ./scripts/dev-server.js",
+    "dev:lan": "node ./scripts/dev-server.js --lan",
+    "start": "npm run dev",
+    "audit:gates": "node ./scripts/audit-runtime-gates.mjs",
+    "audit:gates:strict": "node ./scripts/audit-runtime-gates.mjs --strict",
+    "test": "node --test tests/cache-manifest.test.mjs tests/firmware-and-payload.test.mjs tests/int64.test.mjs tests/error-reporter.test.mjs tests/execution-lock-policy.test.mjs tests/fan-threshold.test.mjs tests/goldhen-raw-adapter.test.mjs tests/ps4debug.test.mjs tests/ps4debug-probe.test.mjs tests/send-payload.test.mjs tests/runtime-gate-audit.test.mjs tests/server.test.mjs tests/source-syntax.test.mjs",
+    "test:all": "npm run test",
+    "debug:probe": "node ./scripts/ps4debug-probe.mjs"
+  },
+  "author": "thiago",
+  "license": "MIT"
+}

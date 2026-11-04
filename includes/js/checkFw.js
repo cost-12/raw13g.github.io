@@ -20,7 +20,7 @@ export const FW_METADATA = {
   "13.04": { kpatch: "1302.bin", exploit: "Relapse (Sysent 663)", goldhen: false, hen: true, title: "FW 13.04" },
   "13.50": { kpatch: "1350.bin", exploit: "Relapse (Sysent 663)", goldhen: false, hen: true, title: "FW 13.50" },
   "13.52": { kpatch: "1352.bin", exploit: "Relapse (Sysent 663)", goldhen: false, hen: true, title: "FW 13.52" },
-  "14.00": { kpatch: "1400.bin", exploit: "Relapse (Sysent 663)", goldhen: false, hen: true, title: "FW 14.00" },
+  "14.00": { kpatch: "1400.bin", exploit: "HX1400 reference (RAW13G Stage 1 only)", goldhen: false, hen: true, title: "FW 14.00" },
 };
 
 /**
