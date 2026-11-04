@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RAW GAME - PS4 Jailbreak Host (11.00 - 14.00)</title>
+<script src="includes/js/resource-loader.js" onerror="window.__resourceLoaderFailed = true"></script>
+<script>
+  if (window.ResourceLoadTracker) {
+    window.ResourceLoadTracker.configure(["error-reporter.js", "legacy-polyfills.js", "index-app-module"]);
+  }
+</script>
+<script src="includes/js/error-reporter.js" onload="window.ResourceLoadTracker && window.ResourceLoadTracker.complete(this, true)" onerror="window.ResourceLoadTracker && window.ResourceLoadTracker.complete(this, false)"></script>
 <link rel="stylesheet" href="includes/css/material-icons.css">
 <link rel="stylesheet" href="includes/css/style.css">
 </head>
@@ -21,11 +28,25 @@
       <span id="fwText">FW DETECTANDO...</span>
     </div>
     <div id="cacheBadge" class="badge">
-      <span id="cacheDot" class="dot ok"></span>
+      <span id="cacheDot" class="dot warn"></span>
       <span id="cacheBadgeText">CACHE VERIFICANDO...</span>
     </div>
   </div>
 </div>
+
+<div id="resource-load-status" role="status" aria-live="polite" style="width:calc(100% - 36px);max-width:784px;padding:8px 10px;margin:8px auto 12px;border:1px solid #666;border-radius:6px;color:#fbbf24">
+  Preparando carregamento dos scripts locais…
+</div>
+<script>
+  if (window.__resourceLoaderFailed || !window.ResourceLoadTracker) {
+    var resourceStatus = document.getElementById("resource-load-status");
+    resourceStatus.textContent = "Falha ao carregar o monitor includes/js/resource-loader.js";
+    resourceStatus.style.color = "#dc2626";
+    resourceStatus.setAttribute("data-state", "error");
+  } else {
+    window.ResourceLoadTracker.refresh();
+  }
+</script>
 
 <div id="container">
 
@@ -73,12 +94,22 @@
     <div id="goldhenVersionsCard" class="goldhen-versions-card">
       <label for="ghVersionSelect"><b>Versão do GoldHEN:</b></label>
       <select id="ghVersionSelect">
-        <option value="GHv2.4b18.12" selected>GoldHEN v2.4b18.12 (Mais Recente)</option>
+        <option value="GHv2.4b18.13">GoldHEN v2.4b18.13</option>
+        <option value="GHv2.4b18.12" selected>GoldHEN v2.4b18.12 (Padrão ≤ 13.00)</option>
         <option value="GHv2.4b18.10">GoldHEN v2.4b18.10</option>
         <option value="GHv2.4b18.9">GoldHEN v2.4b18.9</option>
         <option value="GHv2.4b18.8">GoldHEN v2.4b18.8</option>
         <option value="GHv2.4b18.7">GoldHEN v2.4b18.7</option>
         <option value="GHv2.4b18.6">GoldHEN v2.4b18.6</option>
+      </select>
+    </div>
+
+    <!-- FW 14.00 Groom Profile Selector -->
+    <div id="fw14GroomCard" class="goldhen-versions-card" style="display:none;">
+      <label for="fw14GroomSelect"><b>Perfil de Memória (FW 14.00):</b></label>
+      <select id="fw14GroomSelect">
+        <option value="silver" selected>SilverPS4HEN (8.7M slots / Drain 96, mem=1) - Recomendado</option>
+        <option value="sentrix">Sentrix Estável (9.1M slots / Drain 48, mem=0)</option>
       </select>
     </div>
 
@@ -161,16 +192,71 @@
     </div>
   </div>
 
+  <!-- Fan Threshold Tool (BinLoader :9090) -->
+  <div class="card" id="fanThresholdCard">
+    <div class="card-title">
+      <span>Controle Térmico (Fan Threshold)</span>
+      <span class="diag-ready">● BINLOADER :9090</span>
+    </div>
+    <div class="tips-body">
+      <div style="font-size:13px; color:#a0aec0; margin-bottom:12px;">
+        Ajuste o perfil de rotação do cooler do PlayStation 4. Requer jailbreak ativo e BinLoader ouvindo na porta TCP 9090.
+      </div>
+      <div class="fan-threshold-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:12px;">
+        <button type="button" class="btn-secondary" data-fan-threshold="60" style="padding:10px 8px; font-weight:700; text-align:center;">
+          <span class="material-icons mi-sm" style="display:block; margin:0 auto 4px;">ac_unit</span>
+          60 °C (Silencioso)
+        </button>
+        <button type="button" class="btn-secondary" data-fan-threshold="70" style="padding:10px 8px; font-weight:700; text-align:center;">
+          <span class="material-icons mi-sm" style="display:block; margin:0 auto 4px;">mode_fan</span>
+          70 °C (Equilibrado)
+        </button>
+        <button type="button" class="btn-secondary" data-fan-threshold="80" style="padding:10px 8px; font-weight:700; text-align:center;">
+          <span class="material-icons mi-sm" style="display:block; margin:0 auto 4px;">speed</span>
+          80 °C (Desempenho)
+        </button>
+        <button type="button" class="btn-secondary" data-fan-threshold="85" style="padding:10px 8px; font-weight:700; text-align:center;">
+          <span class="material-icons mi-sm" style="display:block; margin:0 auto 4px;">local_fire_department</span>
+          85 °C (Máximo)
+        </button>
+      </div>
+      <div data-fan-status style="font-size:12px; color:#cbd5e0; padding:6px 10px; background:#1a202c; border-radius:4px; border:1px solid #2d3748;">
+        Requer HEN/GoldHEN carregado e BinLoader ativo na porta TCP 9090.
+      </div>
+    </div>
+  </div>
+
+  <!-- ps4debug-NG diagnostic payload (BinLoader :9090, command server :744) -->
+  <div class="card" id="ps4debugCard">
+    <div class="card-title">
+      <span>Depuração Avançada (ps4debug-NG 1.3.3)</span>
+      <span class="diag-ready">● TCP :744</span>
+    </div>
+    <div class="tips-body">
+      <div style="font-size:13px; color:#a0aec0; margin-bottom:12px;">
+        Envia o payload de diagnóstico após HEN/GoldHEN já estar ativo. Requer BinLoader compatível na porta TCP 9090.
+        O serviço de depuração usa TCP 744; a aceitação do BinLoader não confirma que esse serviço iniciou.
+      </div>
+      <button type="button" class="btn-secondary" data-ps4debug-send style="width:100%; padding:12px; font-weight:700;">
+        <span class="material-icons mi-sm">bug_report</span>
+        Enviar ps4debug-NG 1.3.3
+      </button>
+      <div data-ps4debug-status style="font-size:12px; color:#cbd5e0; margin-top:10px; padding:8px 10px; background:#1a202c; border-radius:4px; border:1px solid #2d3748;">
+        Requer HEN/GoldHEN ativo e BinLoader em TCP 9090. O estado TCP 744 é verificado pelo computador da rede.
+      </div>
+    </div>
+  </div>
+
   <!-- Cache Status Bar -->
   <div id="cacheBar">
-    <div>Armazenamento Offline: <span id="cacheText" class="ok">Verificando ApplicationCache...</span></div>
+    <div>Armazenamento Offline: <span id="cacheText" class="warn">Verificando ApplicationCache...</span></div>
     <div id="cacheDetail" class="cache-subtext">Sem conexão à internet necessária após o 1º acesso</div>
   </div>
 
 </div>
 
 <!-- Scripts com Métodos Modulares -->
-<script src="includes/js/legacy-polyfills.js"></script>
+<script src="includes/js/legacy-polyfills.js" onload="window.ResourceLoadTracker && window.ResourceLoadTracker.complete(this, true)" onerror="window.ResourceLoadTracker && window.ResourceLoadTracker.complete(this, false)"></script>
 <script>
   try {
     if (typeof history !== "undefined" && typeof history.replaceState === "function") {
@@ -178,7 +264,7 @@
     }
   } catch (e) {}
 </script>
-<script type="module">
+<script type="module" data-load-name="index-app-module" onerror="window.ResourceLoadTracker && window.ResourceLoadTracker.complete(this, false)">
   import { detectFw } from "./includes/js/checkFw.js";
   import { 
     isGoldHENSupported, 
@@ -187,7 +273,9 @@
     getGoldHENVer, 
     setGoldHENVer, 
     resolvePayload 
-  } from "./includes/js/HENs.js";
+  } from "./includes/js/HENs.js?v=hen14-only-1";
+  import { bindFanThresholdControls } from "./includes/js/fan-threshold.js";
+  import { bindPs4DebugControls } from "./includes/js/ps4debug-ng.js";
 
   (function () {
     const fwDot = document.getElementById("fwDot");
@@ -205,6 +293,8 @@
     const optHEN = document.getElementById("optHEN");
     const ghVersionSelect = document.getElementById("ghVersionSelect");
     const goldhenVersionsCard = document.getElementById("goldhenVersionsCard");
+    const fw14GroomCard = document.getElementById("fw14GroomCard");
+    const fw14GroomSelect = document.getElementById("fw14GroomSelect");
     const payloadInfoBanner = document.getElementById("payloadInfoBanner");
     const checkPayloadTitle = document.getElementById("checkPayloadTitle");
     const checkPayloadDesc = document.getElementById("checkPayloadDesc");
@@ -223,7 +313,10 @@
     if (fwSupported) {
       fwText.textContent = "FW " + fwKey + " SUPORTADO";
       fwDot.className = "dot ok";
-      detEl.innerHTML = "Firmware <b>" + fwKey + "</b> detectado (" + (fwInfo.meta ? fwInfo.meta.exploit : "SlopKit/Relapse") + ") &middot; <span style='color:var(--ok); font-weight:700;'>Tabela de offsets medida e validada</span>";
+      const fwEvidence = fwKey === "14.00"
+        ? "rota HX configurada; validação em hardware pendente"
+        : "Tabela de offsets medida e validada";
+      detEl.innerHTML = "Firmware <b>" + fwKey + "</b> detectado (" + (fwInfo.meta ? fwInfo.meta.exploit : "SlopKit/Relapse") + ") &middot; <span style='color:var(--ok); font-weight:700;'>" + fwEvidence + "</span>";
     } else if (fwInfo.isPs4) {
       fwText.textContent = "FW " + (fwKey || "DESCONHECIDO");
       fwDot.className = "dot warn";
@@ -241,6 +334,19 @@
     let currentGhVer = getGoldHENVer();
     ghVersionSelect.value = currentGhVer;
 
+    let currentFw14Groom = "silver";
+    try {
+      currentFw14Groom = localStorage.getItem("fw14_groom_profile") || "silver";
+    } catch (e) {}
+    if (fw14GroomSelect) {
+      fw14GroomSelect.value = currentFw14Groom;
+      fw14GroomSelect.addEventListener("change", (e) => {
+        try {
+          localStorage.setItem("fw14_groom_profile", e.target.value);
+        } catch (err) {}
+      });
+    }
+
     function updateFlavorUI() {
       if (currentFlavor === "GoldHEN" && goldHenAllowed) {
         optGoldHEN.classList.add("selected");
@@ -248,6 +354,7 @@
         optHEN.classList.remove("selected");
         optHEN.setAttribute("aria-checked", "false");
         goldhenVersionsCard.style.display = "block";
+        if (fw14GroomCard) fw14GroomCard.style.display = "none";
         payloadInfoBanner.classList.add("is-hidden");
         payloadInfoBanner.style.display = "none";
         checkPayloadTitle.textContent = "GoldHEN Preparado";
@@ -259,6 +366,11 @@
         optGoldHEN.classList.remove("selected");
         optGoldHEN.setAttribute("aria-checked", "false");
         goldhenVersionsCard.style.display = "none";
+        if (fwKey === "14.00" && fw14GroomCard) {
+          fw14GroomCard.style.display = "block";
+        } else if (fw14GroomCard) {
+          fw14GroomCard.style.display = "none";
+        }
         
         if (fwKey && !goldHenAllowed) {
           payloadInfoBanner.className = "compat-banner";
@@ -266,28 +378,34 @@
             '<span class="material-icons mi-warn">info</span>' +
             '<div class="compat-banner-text">' +
             '  <span class="compat-tag">Compatibilidade</span>' +
-            '  No firmware <b>' + fwKey + '</b>, o <b>PS4HEN Nativo</b> é utilizado automaticamente para estabilidade máxima e prevenção de Kernel Panic.' +
+            (fwKey === "14.00"
+              ? '  No firmware <b>14.00</b>, a rota HX carrega a imagem containerizada (<code>hen.bin</code>) com o <b>GoldHEN v2.4b18.13</b> embutido e correções AIO ativas.'
+              : '  No firmware <b>' + fwKey + '</b>, o <b>PS4HEN Nativo</b> é selecionado automaticamente.') +
             '</div>';
           payloadInfoBanner.classList.remove("is-hidden");
           payloadInfoBanner.style.display = "flex";
-          ghStatusBadge.textContent = "Apenas FW <= 13.00";
+          ghStatusBadge.textContent = fwKey === "14.00" ? "GoldHEN v2.4b18.13 embutido no HEN" : "Apenas FW <= 13.00";
           ghStatusBadge.className = "payload-badge";
-          ghStatusBadge.style.background = "#2a1e1e";
-          ghStatusBadge.style.color = "#f87171";
-          henStatusBadge.textContent = "Recomendado para " + fwKey;
+          ghStatusBadge.style.background = "#1e293b";
+          ghStatusBadge.style.color = "#38bdf8";
+          henStatusBadge.textContent = fwKey === "14.00" ? "HEN HX 14.00 (GoldHEN .13)" : "Recomendado para " + fwKey;
           henStatusBadge.className = "payload-badge badge-gold";
         } else {
           payloadInfoBanner.classList.add("is-hidden");
           payloadInfoBanner.style.display = "none";
         }
-        checkPayloadTitle.textContent = "PS4HEN Preparado";
-        checkPayloadDesc.textContent = "PS4HEN nativo (payload2.bin) armado para injeção via pthread.";
+        checkPayloadTitle.textContent = fwKey === "14.00" ? "HEN HX 14.00 Preparado" : "PS4HEN Preparado";
+        checkPayloadDesc.textContent = fwKey === "14.00"
+          ? "Imagem HEN específica da rota HX (hen.bin, 562.240 bytes). GoldHEN 2.4b18.13 não é carregado nesta etapa."
+          : "PS4HEN nativo (payload2.bin) armado para injeção via pthread.";
       }
     }
 
     optGoldHEN.addEventListener("click", () => {
       if (!goldHenAllowed && fwKey) {
-        alert("O GoldHEN atualmente suporta firmwares até 13.00. Para o firmware " + fwKey + ", o PS4HEN Nativo é o payload suportado.");
+        alert(fwKey === "14.00"
+          ? "O GoldHEN 2.4b18.13 ainda não está integrado nesta etapa. O caminho atual do firmware 14.00 carrega somente a imagem HEN da rota HX."
+          : "O GoldHEN atualmente está habilitado no host até 13.00. Para o firmware " + fwKey + ", o caminho HEN é selecionado.");
         return;
       }
       currentFlavor = setJbFlavor("GoldHEN", fwKey);
@@ -330,10 +448,63 @@
         const extra = p.toString();
         if (extra) target += "&" + extra;
       }
-      if (!target.includes("slots=")) {
+      // Firmware 14.00 has its own measured groom profile in ps4_offsets.js.
+      // Do not override it with the generic 2.8M / one-attempt fallback.
+      const isHx1400 = fwKey === "14.00";
+      const launchUrl = new URL(target, location.href);
+      if (isHx1400 && !launchUrl.searchParams.has("hx1400")) {
+        launchUrl.searchParams.set("hx1400", "1");
+      }
+      if (isHx1400 && launchUrl.searchParams.get("hx1400") === "1") {
+        const fw14Groom = fw14GroomSelect ? fw14GroomSelect.value : "sentrix";
+        if (!launchUrl.searchParams.has("mem")) {
+          if (fw14Groom === "silver") {
+            launchUrl.searchParams.set("mem", "1");
+          } else {
+            launchUrl.searchParams.set("mem", "0");
+          }
+        }
+        for (const [key, value] of Object.entries({
+          stage3: "1",
+          stage4: "1",
+          stage5: "1",
+          stage6: "1",
+          stage7: "1",
+          stage8: "1",
+          stage9: "1",
+          stage10: "1",
+          "hen-direct": "1",
+        })) {
+          if (!launchUrl.searchParams.has(key)) launchUrl.searchParams.set(key, value);
+        }
+      }
+
+      // Se um lock anterior existir, verificar se pertencia apenas ao WebKit Stage 1.
+      // Se a sessão anterior foi interrompida no WebKit sem tocar o kernel, liberamos
+      // para evitar que um novo início manual seja bloqueado por até 45s com tela estática.
+      try {
+        const rawLock = localStorage.getItem("raw13g:jb:execution-lock:v2");
+        if (rawLock) {
+          const parsed = JSON.parse(rawLock);
+          if (
+            parsed &&
+            (parsed.stage === 1 || parsed.stage == null) &&
+            (parsed.state === "running" || parsed.state === "interrupted" || parsed.state === "placement-miss")
+          ) {
+            localStorage.removeItem("raw13g:jb:execution-lock:v2");
+            launchUrl.searchParams.set("reset-lock", "1");
+          }
+        }
+      } catch (errLock) {}
+
+      target = launchUrl.pathname + launchUrl.search;
+
+      if (!isHx1400 && !target.includes("slots=")) {
+        // Generic calibration profile for other firmware versions.
         target += "&slots=2800000";
       }
-      if (!target.includes("attempts=")) {
+      if (!isHx1400 && !target.includes("attempts=")) {
+        // Keep the generic path single-shot; 14.00 uses its firmware profile.
         target += "&attempts=1";
       }
       if (!target.includes("log=")) {
@@ -400,10 +571,12 @@
         } else if (document.activeElement === optHEN) {
           if (goldHenAllowed && goldhenVersionsCard.style.display !== "none") {
             ghVersionSelect.focus();
+          } else if (fw14GroomCard && fw14GroomCard.style.display !== "none") {
+            fw14GroomSelect.focus();
           } else {
             startBtn.focus();
           }
-        } else if (document.activeElement === ghVersionSelect) {
+        } else if (document.activeElement === ghVersionSelect || document.activeElement === fw14GroomSelect) {
           startBtn.focus();
         }
       } else if (k === "ArrowUp" || k === "ArrowLeft" || k === 38 || k === 37) {
@@ -412,6 +585,8 @@
         } else if (document.activeElement === startBtn) {
           if (goldHenAllowed && goldhenVersionsCard.style.display !== "none") {
             ghVersionSelect.focus();
+          } else if (fw14GroomCard && fw14GroomCard.style.display !== "none") {
+            fw14GroomSelect.focus();
           } else if (currentFlavor === "HEN") {
             optHEN.focus();
           } else {
@@ -419,11 +594,13 @@
           }
         } else if (document.activeElement === ghVersionSelect) {
           optGoldHEN.focus();
+        } else if (document.activeElement === fw14GroomSelect) {
+          optHEN.focus();
         } else if (document.activeElement === optHEN) {
           optGoldHEN.focus();
         }
       } else if (k === "Enter" || k === " " || k === 13 || k === 32 || k === 88 || k === "x" || k === "X" || k === 0) {
-        if (document.activeElement === optGoldHEN || document.activeElement === optHEN || document.activeElement === ghVersionSelect) {
+        if (document.activeElement === optGoldHEN || document.activeElement === optHEN || document.activeElement === ghVersionSelect || document.activeElement === fw14GroomSelect) {
           return;
         }
         handleAction(e);
@@ -527,9 +704,29 @@
       });
       ac.addEventListener("checking", () => setCacheStatus("Verificando atualizações no cache...", "warn", "warn"));
       ac.addEventListener("downloading", () => setCacheStatus("Baixando arquivos offline para o PS4...", "warn", "warn"));
-      ac.addEventListener("error", () => setCacheStatus("Cache Local Operante (Modo Offline)", "ok", "ok"));
+      ac.addEventListener("error", () => setCacheStatus("Falha ao verificar/atualizar o cache (offline não confirmado)", "bad", "bad"));
+    } else {
+      if (cacheText) {
+        cacheText.textContent = "ApplicationCache indisponível neste navegador";
+        cacheText.className = "bad";
+      }
+      if (cacheDot) cacheDot.className = "dot bad";
+      if (cacheBadgeText) cacheBadgeText.textContent = "CACHE INDISPONÍVEL";
     }
+    // 6. Controle Térmico (Fan Threshold)
+    bindFanThresholdControls({
+      root: document.getElementById("fanThresholdCard"),
+      isSupported: fwInfo.isPs4 && fwSupported,
+    });
+    // ps4debug-NG is an auxiliary payload. It does not replace or start HEN.
+    bindPs4DebugControls({
+      root: document.getElementById("ps4debugCard"),
+      isSupported: fwInfo.isPs4 && fwSupported,
+    });
   })();
+  if (window.ResourceLoadTracker) {
+    window.ResourceLoadTracker.complete("index-app-module", true);
+  }
 </script>
 
 </body>

@@ -4,6 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>RAW GAME - Execução do Exploit</title>
+  <script src="includes/js/resource-loader.js" onerror="window.__resourceLoaderFailed = true"></script>
+  <script>
+    if (window.ResourceLoadTracker) {
+      window.ResourceLoadTracker.configure(["error-reporter.js", "legacy-polyfills.js", "jb-app-module"]);
+    }
+  </script>
+  <script src="includes/js/error-reporter.js" onload="window.ResourceLoadTracker && window.ResourceLoadTracker.complete(this, true)" onerror="window.ResourceLoadTracker && window.ResourceLoadTracker.complete(this, false)"></script>
   <link rel="stylesheet" href="includes/css/material-icons.css">
   <link rel="stylesheet" href="includes/css/jb.css">
 </head>
@@ -23,6 +30,20 @@
       <span id="timerClock">00:00.0s</span>
     </div>
   </div>
+
+  <div id="resource-load-status" role="status" aria-live="polite" style="width:calc(100% - 32px);max-width:928px;padding:8px 10px;margin:8px auto 12px;border:1px solid #666;border-radius:6px;color:#fbbf24">
+    Preparando carregamento dos scripts locais…
+  </div>
+  <script>
+    if (window.__resourceLoaderFailed || !window.ResourceLoadTracker) {
+      var resourceStatus = document.getElementById("resource-load-status");
+      resourceStatus.textContent = "Falha ao carregar o monitor includes/js/resource-loader.js";
+      resourceStatus.style.color = "#dc2626";
+      resourceStatus.setAttribute("data-state", "error");
+    } else {
+      window.ResourceLoadTracker.refresh();
+    }
+  </script>
 
   <div id="mainWrap">
 
@@ -75,6 +96,70 @@
         </div>
       </div>
       <a id="executionReset" href="?reset-lock=1">Console reiniciado? Liberar e executar novamente</a>
+    </div>
+
+    <!-- Post-Exploit Action & Tools Card (Shown when Jailbreak/HEN is Complete) -->
+    <div id="postExploitCard" class="is-hidden post-exploit-panel">
+      <div class="post-exploit-header">
+        <span class="material-icons mi-green" style="font-size:26px;">verified</span>
+        <div>
+          <b>FERRAMENTAS PÓS-EXPLOIT (JAILBREAK ATIVO)</b>
+          <div class="post-exploit-subtitle">Privilégios root concedidos. O console está pronto para receber utilitários auxiliares ou retornar ao menu.</div>
+        </div>
+      </div>
+
+      <div class="post-exploit-actions-bar">
+        <a href="index.html" class="btn-return-home">
+          <span class="material-icons mi-sm">home</span>
+          Retornar ao Menu Principal
+        </a>
+      </div>
+
+      <div class="post-exploit-grid">
+        <!-- Fan Threshold Tool -->
+        <div id="postFanThresholdCard" class="post-tool-card">
+          <div class="post-tool-title">
+            <span class="material-icons mi-sm mi-accent">mode_fan</span>
+            <b>Controle Térmico (Fan Threshold)</b>
+          </div>
+          <div class="post-tool-desc">
+            Define a curva de rotação do cooler via BinLoader (porta TCP 9090).
+          </div>
+          <div class="post-fan-buttons">
+            <button type="button" class="btn-post-fan" data-fan-threshold="60">60 °C (Silencioso)</button>
+            <button type="button" class="btn-post-fan" data-fan-threshold="70">70 °C (Equilibrado)</button>
+            <button type="button" class="btn-post-fan" data-fan-threshold="80">80 °C (Desempenho)</button>
+            <button type="button" class="btn-post-fan" data-fan-threshold="85">85 °C (Máximo)</button>
+          </div>
+          <div data-fan-status class="post-tool-status">
+            Aguardando seleção. Requer BinLoader ativo na porta 9090.
+          </div>
+        </div>
+
+        <!-- ps4debug-NG Tool -->
+        <div id="postPs4DebugCard" class="post-tool-card">
+          <div class="post-tool-title">
+            <span class="material-icons mi-sm mi-accent">bug_report</span>
+            <b>ps4debug-NG v1.3.3</b>
+          </div>
+          <div class="post-tool-desc">
+            Servidor de depuração remota e leitura/escrita de processos na porta TCP 744.
+          </div>
+          <button type="button" class="btn-post-action" data-ps4debug-send>
+            <span class="material-icons mi-sm">send</span>
+            Carregar ps4debug-NG no Console
+          </button>
+          <div data-ps4debug-status class="post-tool-status">
+            Requer BinLoader na porta 9090. Após carregar, conecte à porta TCP 744.
+          </div>
+        </div>
+      </div>
+
+      <!-- GoldHEN 2.4b18.13 Status Info -->
+      <div class="post-gh-info">
+        <span class="material-icons mi-sm mi-warn">info</span>
+        <span><b>GoldHEN v2.4b18.13:</b> O ambiente HEN ativo inicializou com sucesso o servidor FTP (porta 2121) e o KLog (porta 3232). A imagem bruta de 297 KB permanece em Fase B até auditoria completa dos 57 locais de texto de kernel para 14.00.</span>
+      </div>
     </div>
 
     <!-- Monospace Execution Terminal Output -->
@@ -228,7 +313,7 @@
         executionReset.dataset.reason = reason || "locked";
         if (reason === "completed") {
           executionReset.textContent = "Console reiniciado após sucesso? Liberar e executar novamente";
-        } else if (reason === "kernel-dirty" || reason === "reboot_required") {
+        } else if (reason === "kernel-dirty" || reason === "reboot_required" || reason === "reboot-required" || String(reason).indexOf("hx1400-") === 0) {
           executionReset.textContent = "Console reiniciado após aviso de reboot? Liberar e executar";
         } else if (reason === "running") {
           executionReset.textContent = "Execução anterior travada? Forçar liberação e executar";
@@ -259,11 +344,38 @@
     })();
   </script>
 
-  <script src="includes/js/legacy-polyfills.js"></script>
+  <script src="includes/js/legacy-polyfills.js" onload="window.ResourceLoadTracker && window.ResourceLoadTracker.complete(this, true)" onerror="window.ResourceLoadTracker && window.ResourceLoadTracker.complete(this, false)"></script>
 
   <!-- Load Exploit Module from includes/js/ -->
+  <script type="module" data-load-name="jb-app-module" onerror="window.ResourceLoadTracker && window.ResourceLoadTracker.complete(this, false)">
+    import "./includes/js/jb.js?v=20";
+    if (window.ResourceLoadTracker) {
+      window.ResourceLoadTracker.complete("jb-app-module", true);
+    }
+  </script>
+
+  <!-- Post-Exploit Tools Module -->
   <script type="module">
-    import "./includes/js/jb.js?v=11";
+    import { bindFanThresholdControls } from "./includes/js/fan-threshold.js";
+    import { bindPs4DebugControls } from "./includes/js/ps4debug-ng.js";
+
+    window.showPostExploitTools = function () {
+      var card = document.getElementById("postExploitCard");
+      if (!card) return;
+      card.classList.remove("is-hidden");
+      card.style.display = "block";
+      bindFanThresholdControls({
+        root: document.getElementById("postFanThresholdCard"),
+        isSupported: true,
+      });
+      bindPs4DebugControls({
+        root: document.getElementById("postPs4DebugCard"),
+        isSupported: true,
+      });
+      try {
+        card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      } catch (e) {}
+    };
   </script>
 
   <!-- Heap Watchdog (PSPULSE) -->
@@ -303,11 +415,15 @@
         for (var i = lines.length - 1; i >= 0; i--) {
           if (
             lines[i].includes("PAYLOAD-RUNNING") ||
-            lines[i].includes("ALREADY-ROOT")
+            lines[i].includes("ALREADY-ROOT") ||
+            lines[i].includes("ENTRY-RETURNED") ||
+            lines[i].includes("HX1400-KERNEL-COMPLETE")
           ) {
             return (
               lines[i].indexOf("PROOF-OK") === 0 ||
-              lines[i].indexOf("ALREADY-ROOT") === 0
+              lines[i].indexOf("ALREADY-ROOT") === 0 ||
+              lines[i].indexOf("ENTRY-RETURNED") === 0 ||
+              lines[i].indexOf("HX1400-KERNEL-COMPLETE") === 0
             );
           }
         }
