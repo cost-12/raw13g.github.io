@@ -104,6 +104,40 @@
       </select>
     </div>
 
+    <!-- GoldHEN Features & In-Kernel Config (/data/GoldHEN/config.ini) -->
+    <div id="goldhenConfigCard" class="goldhen-versions-card" style="margin-top:10px;">
+      <div style="font-size:12px; font-weight:700; color:#fbbf24; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+        <span class="material-icons mi-sm">settings</span>
+        <span>Configurações do GoldHEN (/data/GoldHEN/config.ini):</span>
+      </div>
+      <div style="font-size:11px; color:#94a3b8; margin-bottom:10px;">
+        Recursos internos não alternáveis pela interface gráfica nativa do console:
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+          <input type="checkbox" id="ghAioFixToggle" checked style="accent-color:#f59e0b; width:16px; height:16px;">
+          <span><b>AIO Fix (AIO_Fix_Enabled)</b> &mdash; Correção de backports e estabilidade (previne CE-34878-0)</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+          <input type="checkbox" id="ghGamePatchToggle" checked style="accent-color:#f59e0b; width:16px; height:16px;">
+          <span><b>Game Patch (Game_Patch_Enabled)</b> &mdash; Patches de jogos (60 FPS, resolução e mods)</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+          <input type="checkbox" id="ghPluginLoaderToggle" checked style="accent-color:#f59e0b; width:16px; height:16px;">
+          <span><b>Plugin Loader (Plugin_Loader_Enabled)</b> &mdash; Carregador de plugins .prx (/data/GoldHEN/plugins)</span>
+        </label>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+        <button type="button" id="ghDownloadConfigBtn" class="btn-secondary" style="font-size:11px; padding:5px 9px;">
+          <span class="material-icons mi-sm">download</span> Baixar config.ini
+        </button>
+        <button type="button" id="ghCopyConfigBtn" class="btn-secondary" style="font-size:11px; padding:5px 9px;">
+          <span class="material-icons mi-sm">content_copy</span> Copiar Bloco INI
+        </button>
+      </div>
+      <div id="ghConfigFeedback" style="font-size:11px; color:#10b981; margin-top:6px; display:none;"></div>
+    </div>
+
     <!-- FW 14.00 Groom Profile Selector -->
     <div id="fw14GroomCard" class="goldhen-versions-card" style="display:none;">
       <label for="fw14GroomSelect"><b>Perfil de Memória (FW 14.00):</b></label>
@@ -202,6 +236,11 @@
       <div style="font-size:13px; color:#a0aec0; margin-bottom:12px;">
         Ajuste o perfil de rotação do cooler do PlayStation 4. Requer jailbreak ativo e BinLoader ouvindo na porta TCP 9090.
       </div>
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+        <label for="fanTargetIp" style="font-size:12px; color:#94a3b8;"><b>IP Alvo do PS4:</b></label>
+        <input type="text" id="fanTargetIp" data-fan-target-ip data-binloader-target-ip value="127.0.0.1" style="background:#0f172a; border:1px solid #334155; color:#f8fafc; border-radius:4px; padding:4px 8px; font-size:12px; width:130px; text-align:center;">
+        <span style="font-size:11px; color:#64748b;">(No PS4: 127.0.0.1 &middot; No PC: IP local do PS4)</span>
+      </div>
       <div class="fan-threshold-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:12px;">
         <button type="button" class="btn-secondary" data-fan-threshold="60" style="padding:10px 8px; font-weight:700; text-align:center;">
           <span class="material-icons mi-sm" style="display:block; margin:0 auto 4px;">ac_unit</span>
@@ -220,6 +259,13 @@
           85 °C (Máximo)
         </button>
       </div>
+      <div style="display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap;">
+        <span style="font-size:11px; color:#94a3b8; align-self:center;">Baixar Payload:</span>
+        <a href="includes/payloads/Tools/fan-thresholds/ps4-fan-threshold60.bin" download class="btn-secondary" style="font-size:11px; padding:3px 6px; text-decoration:none;">60°C.bin</a>
+        <a href="includes/payloads/Tools/fan-thresholds/ps4-fan-threshold70.bin" download class="btn-secondary" style="font-size:11px; padding:3px 6px; text-decoration:none;">70°C.bin</a>
+        <a href="includes/payloads/Tools/fan-thresholds/ps4-fan-threshold80.bin" download class="btn-secondary" style="font-size:11px; padding:3px 6px; text-decoration:none;">80°C.bin</a>
+        <a href="includes/payloads/Tools/fan-thresholds/ps4-fan-threshold85.bin" download class="btn-secondary" style="font-size:11px; padding:3px 6px; text-decoration:none;">85°C.bin</a>
+      </div>
       <div data-fan-status style="font-size:12px; color:#cbd5e0; padding:6px 10px; background:#1a202c; border-radius:4px; border:1px solid #2d3748;">
         Requer HEN/GoldHEN carregado e BinLoader ativo na porta TCP 9090.
       </div>
@@ -237,10 +283,21 @@
         Envia o payload de diagnóstico após HEN/GoldHEN já estar ativo. Requer BinLoader compatível na porta TCP 9090.
         O serviço de depuração usa TCP 744; a aceitação do BinLoader não confirma que esse serviço iniciou.
       </div>
-      <button type="button" class="btn-secondary" data-ps4debug-send style="width:100%; padding:12px; font-weight:700;">
-        <span class="material-icons mi-sm">bug_report</span>
-        Enviar ps4debug-NG 1.3.3
-      </button>
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+        <label for="debugTargetIp" style="font-size:12px; color:#94a3b8;"><b>IP Alvo do PS4:</b></label>
+        <input type="text" id="debugTargetIp" data-ps4debug-target-ip data-binloader-target-ip value="127.0.0.1" style="background:#0f172a; border:1px solid #334155; color:#f8fafc; border-radius:4px; padding:4px 8px; font-size:12px; width:130px; text-align:center;">
+        <span style="font-size:11px; color:#64748b;">(No PS4: 127.0.0.1 &middot; No PC: IP local do PS4)</span>
+      </div>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <button type="button" class="btn-secondary" data-ps4debug-send style="flex:1; padding:12px; font-weight:700;">
+          <span class="material-icons mi-sm">bug_report</span>
+          Enviar ps4debug-NG 1.3.3
+        </button>
+        <a href="includes/payloads/Tools/ps4debug-ng_v1.3.3.bin" download class="btn-secondary" style="padding:12px 14px; font-weight:700; text-decoration:none; display:flex; align-items:center; gap:4px;">
+          <span class="material-icons mi-sm">download</span>
+          Baixar .bin
+        </a>
+      </div>
       <div data-ps4debug-status style="font-size:12px; color:#cbd5e0; margin-top:10px; padding:8px 10px; background:#1a202c; border-radius:4px; border:1px solid #2d3748;">
         Requer HEN/GoldHEN ativo e BinLoader em TCP 9090. O estado TCP 744 é verificado pelo computador da rede.
       </div>
@@ -272,7 +329,10 @@
     setJbFlavor, 
     getGoldHENVer, 
     setGoldHENVer, 
-    resolvePayload 
+    resolvePayload,
+    getGoldHENConfig,
+    setGoldHENConfig,
+    formatGoldHENIni
   } from "./includes/js/HENs.js?v=hen14-only-1";
   import { bindFanThresholdControls } from "./includes/js/fan-threshold.js";
   import { bindPs4DebugControls } from "./includes/js/ps4debug-ng.js";
@@ -293,6 +353,13 @@
     const optHEN = document.getElementById("optHEN");
     const ghVersionSelect = document.getElementById("ghVersionSelect");
     const goldhenVersionsCard = document.getElementById("goldhenVersionsCard");
+    const goldhenConfigCard = document.getElementById("goldhenConfigCard");
+    const ghAioFixToggle = document.getElementById("ghAioFixToggle");
+    const ghGamePatchToggle = document.getElementById("ghGamePatchToggle");
+    const ghPluginLoaderToggle = document.getElementById("ghPluginLoaderToggle");
+    const ghDownloadConfigBtn = document.getElementById("ghDownloadConfigBtn");
+    const ghCopyConfigBtn = document.getElementById("ghCopyConfigBtn");
+    const ghConfigFeedback = document.getElementById("ghConfigFeedback");
     const fw14GroomCard = document.getElementById("fw14GroomCard");
     const fw14GroomSelect = document.getElementById("fw14GroomSelect");
     const payloadInfoBanner = document.getElementById("payloadInfoBanner");
@@ -354,11 +421,12 @@
         optHEN.classList.remove("selected");
         optHEN.setAttribute("aria-checked", "false");
         goldhenVersionsCard.style.display = "block";
+        if (goldhenConfigCard) goldhenConfigCard.style.display = "block";
         if (fw14GroomCard) fw14GroomCard.style.display = "none";
         payloadInfoBanner.classList.add("is-hidden");
         payloadInfoBanner.style.display = "none";
         checkPayloadTitle.textContent = "GoldHEN Preparado";
-        checkPayloadDesc.textContent = ghVersionSelect.options[ghVersionSelect.selectedIndex].text + " armado para injeção via pthread.";
+        checkPayloadDesc.textContent = ghVersionSelect.options[ghVersionSelect.selectedIndex].text + " armado para injeção via pthread com AIO Fix e Game Patch.";
       } else {
         currentFlavor = "HEN";
         optHEN.classList.add("selected");
@@ -366,6 +434,7 @@
         optGoldHEN.classList.remove("selected");
         optGoldHEN.setAttribute("aria-checked", "false");
         goldhenVersionsCard.style.display = "none";
+        if (goldhenConfigCard) goldhenConfigCard.style.display = "none";
         if (fwKey === "14.00" && fw14GroomCard) {
           fw14GroomCard.style.display = "block";
         } else if (fw14GroomCard) {
@@ -422,6 +491,61 @@
       updateFlavorUI();
     });
 
+    if (ghAioFixToggle && ghGamePatchToggle && ghPluginLoaderToggle) {
+      const cfg = getGoldHENConfig();
+      ghAioFixToggle.checked = cfg.aioFix;
+      ghGamePatchToggle.checked = cfg.gamePatch;
+      ghPluginLoaderToggle.checked = cfg.pluginLoader;
+
+      const saveCfg = () => {
+        setGoldHENConfig({
+          aioFix: ghAioFixToggle.checked,
+          gamePatch: ghGamePatchToggle.checked,
+          pluginLoader: ghPluginLoaderToggle.checked,
+        });
+      };
+      ghAioFixToggle.addEventListener("change", saveCfg);
+      ghGamePatchToggle.addEventListener("change", saveCfg);
+      ghPluginLoaderToggle.addEventListener("change", saveCfg);
+
+      if (ghDownloadConfigBtn) {
+        ghDownloadConfigBtn.addEventListener("click", () => {
+          saveCfg();
+          const ini = formatGoldHENIni(getGoldHENConfig());
+          const blob = new Blob([ini], { type: "text/plain;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "config.ini";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          if (ghConfigFeedback) {
+            ghConfigFeedback.textContent = "Arquivo config.ini gerado e baixado!";
+            ghConfigFeedback.style.display = "block";
+            setTimeout(() => { ghConfigFeedback.style.display = "none"; }, 3000);
+          }
+        });
+      }
+
+      if (ghCopyConfigBtn) {
+        ghCopyConfigBtn.addEventListener("click", () => {
+          saveCfg();
+          const ini = formatGoldHENIni(getGoldHENConfig());
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(ini).then(() => {
+              if (ghConfigFeedback) {
+                ghConfigFeedback.textContent = "Bloco [GoldHEN] copiado para a área de transferência!";
+                ghConfigFeedback.style.display = "block";
+                setTimeout(() => { ghConfigFeedback.style.display = "none"; }, 3000);
+              }
+            });
+          }
+        });
+      }
+    }
+
     updateFlavorUI();
 
     // 3. Inicialização e Disparo do Exploit
@@ -441,6 +565,10 @@
       }
 
       let target = "jb.html?flavor=" + encodeURIComponent(payloadRes.flavor) + "&payload_path=" + encodeURIComponent(payloadRes.path);
+      const ghCfg = getGoldHENConfig();
+      target += "&aio_fix=" + (ghCfg.aioFix ? "1" : "0") +
+                "&game_patch=" + (ghCfg.gamePatch ? "1" : "0") +
+                "&plugin_loader=" + (ghCfg.pluginLoader ? "1" : "0");
       if (location.search) {
         const p = new URLSearchParams(location.search);
         p.delete("flavor");
@@ -716,12 +844,12 @@
     // 6. Controle Térmico (Fan Threshold)
     bindFanThresholdControls({
       root: document.getElementById("fanThresholdCard"),
-      isSupported: fwInfo.isPs4 && fwSupported,
+      isSupported: true,
     });
     // ps4debug-NG is an auxiliary payload. It does not replace or start HEN.
     bindPs4DebugControls({
       root: document.getElementById("ps4debugCard"),
-      isSupported: fwInfo.isPs4 && fwSupported,
+      isSupported: true,
     });
   })();
   if (window.ResourceLoadTracker) {

@@ -1,7 +1,7 @@
 CACHE MANIFEST
-# rev 20261104-v79-anti-panic-kevent-guard
+# rev 20261107-v80-goldhen-aio-gamepatch-cache-quota
 
-# SHA-256: index.html ce11c52797c0090b2dcc896bcb138cdb99994fa2ded84f2b4f5da8df1183ba93
+# SHA-256: index.html 4983c098a954bcdbfac2c2e03676cfd66c0fcade62d6afb63b43c7b113e73c65
 index.html
 # SHA-256: jb.html 3ee0c2c80597313cc2693f466965fd77dd2d432f116f7191f0a9239375daf756
 jb.html
@@ -23,9 +23,9 @@ includes/js/checkFw.js
 includes/js/error-reporter.js
 # SHA-256: includes/js/resource-loader.js c46d8d3b78af5b1f96ac360d44c9b28df236cd7b75f683fd351392ba6aaa5472
 includes/js/resource-loader.js
-# SHA-256: includes/js/HENs.js 070ddff23e9f0fb0ee5fc2a56f9cba85cbae570165d5789866a97e2f82e6ba91
+# SHA-256: includes/js/HENs.js 58e405466e1b46f88a3d4a241cefbc1857ba9ee917e6d0e480001e81b660b310
 includes/js/HENs.js
-# SHA-256: includes/js/HENs.js?v=hen14-only-1 070ddff23e9f0fb0ee5fc2a56f9cba85cbae570165d5789866a97e2f82e6ba91
+# SHA-256: includes/js/HENs.js?v=hen14-only-1 58e405466e1b46f88a3d4a241cefbc1857ba9ee917e6d0e480001e81b660b310
 includes/js/HENs.js?v=hen14-only-1
 # SHA-256: includes/js/core.js?v=16 9d91aa885828c01af0701a320d8bd2c9a01baac71e703ad31f00742ad0d22f19
 includes/js/core.js?v=16
@@ -39,7 +39,7 @@ includes/js/mem.js
 includes/js/ps4_offsets.js
 # SHA-256: includes/js/rpc_worker.js b0d875a8a190fad88448d2e992b6dd9f10eb497895b70d5845fafe3067d7f20d
 includes/js/rpc_worker.js
-# SHA-256: includes/js/jb.js?v=20 7808ec5a83225e7750a9b231b8da304e4f82f8abb028522298968f3dff0933c0
+# SHA-256: includes/js/jb.js?v=20 22870234032aa959719752cd663934486a48210f40e71d00379ca0963a07567b
 includes/js/jb.js?v=20
 # SHA-256: includes/js/execution-lock-policy.js?v=lock-policy-1 26c02dcf1b8dab29c48baf263d7b32f0ca8e0869269fb310b80da600c901b964
 includes/js/execution-lock-policy.js?v=lock-policy-1
@@ -84,7 +84,7 @@ patches/1400.bin
 
 # SHA-256: includes/js/hx1400_port.js?v=hx1400-1 0f7ceb904dee0be740c2d5e7f32dbddd48d1bb07dc8abeb10a40ea46a880a6c2
 includes/js/hx1400_port.js?v=hx1400-1
-# SHA-256: includes/js/hx_kevent.js?v=hx1400-hen-only-1 c71057087273f8a5c4605e63d5109b46f19743e07e5a63bb9bb41a92521b7762
+# SHA-256: includes/js/hx_kevent.js?v=hx1400-hen-only-1 cbd6819149bb71be10c0012b45e9c0b778afec9194bff456353451463fe5ab87
 includes/js/hx_kevent.js?v=hx1400-hen-only-1
 # SHA-256: includes/js/hx_tables.js?v=hx1400-1 68e35e5bd4d7d8f1540f5370d373767d91cfe3ff50930712a50f28672ad3070d
 includes/js/hx_tables.js?v=hx1400-1
@@ -93,14 +93,10 @@ includes/payloads/HEN/hen.bin
 
 # SHA-256: includes/js/goldhen-raw-adapter.js 831d65c0adc4e2fd19781d096d33eee902a5532fa164db762d1c5a023fd9a914
 includes/js/goldhen-raw-adapter.js
-# SHA-256: includes/js/ps4debug-ng.js 96a0496d2d38674e4392b0ab339f9a38f688820add16464ea43f69423b98357c
+# SHA-256: includes/js/ps4debug-ng.js fd0db1ef199c042b19a3c13c9094c0867fd1066b2166db3d840b0cf81db3576e
 includes/js/ps4debug-ng.js
-# SHA-256: includes/js/fan-threshold.js 8229c663d75154816c211afb4a1c2ce5f29ab24bb16c267507548c9939fb9fda
+# SHA-256: includes/js/fan-threshold.js b0c2a49d46eb0820e84ec14d7f9afa72eb0eb4c72ace16fa7d6f0bceb4d6ee34
 includes/js/fan-threshold.js
-# SHA-256: includes/payloads/Tools/ps4debug-ng_v1.3.3.bin b348affbb6434ff6892ce24e5f1387e4e6657756c3ba42d117fb73b58d08f7a2
-includes/payloads/Tools/ps4debug-ng_v1.3.3.bin
-# SHA-256: includes/payloads/Tools/PS4DEBUG-NG-GPL-3.0.txt 3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986
-includes/payloads/Tools/PS4DEBUG-NG-GPL-3.0.txt
 # SHA-256: includes/payloads/Tools/fan-thresholds/ps4-fan-threshold60.bin 73bda82299ce84440c678d0b20704bf74df507897eeffb392e7fb076f4417b13
 includes/payloads/Tools/fan-thresholds/ps4-fan-threshold60.bin
 # SHA-256: includes/payloads/Tools/fan-thresholds/ps4-fan-threshold70.bin 7be7b600f0ef89aa5bfa5e7f40d549103138286c0c04d0004f7bc9a6f6d0176c

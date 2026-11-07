@@ -3771,6 +3771,64 @@ const WORKER_STATE = {
                   jbDone,
                   "getuid=" + uidNow2 + " cr_uid=" + rbUid,
                 );
+
+                if (jbDone) {
+                  try {
+                    const aioFix = params.get("aio_fix") !== "0";
+                    const gamePatch = params.get("game_patch") !== "0";
+                    const pluginLoader = params.get("plugin_loader") !== "0";
+
+                    const stMkdir = findStub(136);
+                    const stWrite = findStub(4);
+                    const stClose = findStub(6);
+
+                    const makeStrBuf = (str) => {
+                      const b = new ArrayBuffer(str.length + 1);
+                      keepAlive.push(b);
+                      const u = new Uint8Array(b);
+                      for (let i = 0; i < str.length; i++) u[i] = str.charCodeAt(i);
+                      u[str.length] = 0;
+                      return bufAddr(b);
+                    };
+
+                    if (stMkdir) {
+                      callAddr(stMkdir, [makeStrBuf("/data"), 0x1ff]);
+                      callAddr(stMkdir, [makeStrBuf("/data/GoldHEN"), 0x1ff]);
+                      callAddr(stMkdir, [makeStrBuf("/data/hen"), 0x1ff]);
+                    }
+
+                    const iniContent =
+                      "[GoldHEN]\n" +
+                      "AIO_Fix_Enabled = " + (aioFix ? 1 : 0) + "\n" +
+                      "Game_Patch_Enabled = " + (gamePatch ? 1 : 0) + "\n" +
+                      "Plugin_Loader_Enabled = " + (pluginLoader ? 1 : 0) + "\n" +
+                      "FTP_Port = 2121\n" +
+                      "BinLoader_Port = 9090\n" +
+                      "Klog_Port = 3232\n";
+
+                    const contentBuf = new ArrayBuffer(iniContent.length);
+                    keepAlive.push(contentBuf);
+                    const cu8 = new Uint8Array(contentBuf);
+                    for (let i = 0; i < iniContent.length; i++) cu8[i] = iniContent.charCodeAt(i);
+                    const contentAddr = bufAddr(contentBuf);
+
+                    if (stOpen && stWrite && stClose) {
+                      const fd = callAddr(stOpen, [makeStrBuf("/data/GoldHEN/config.ini"), 0x0601, 0x1b6]).i32;
+                      if (fd >= 0) {
+                        callAddr(stWrite, [fd, contentAddr, iniContent.length]);
+                        callAddr(stClose, [fd]);
+                        mark("GOLDHEN-CONFIG", "written=true path=/data/GoldHEN/config.ini aio_fix=" + (aioFix ? 1 : 0) + " game_patch=" + (gamePatch ? 1 : 0));
+                      }
+                      const henFd = callAddr(stOpen, [makeStrBuf("/data/hen/hen.ini"), 0x0601, 0x1b6]).i32;
+                      if (henFd >= 0) {
+                        callAddr(stWrite, [henFd, contentAddr, iniContent.length]);
+                        callAddr(stClose, [henFd]);
+                      }
+                    }
+                  } catch (errCfg) {
+                    mark("GOLDHEN-CONFIG-ERROR", String(errCfg));
+                  }
+                }
               }
             }
 

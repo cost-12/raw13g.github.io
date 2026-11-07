@@ -6,9 +6,13 @@ import { test } from "node:test";
 import { detectFw } from "../includes/js/checkFw.js";
 import {
   DEFAULT_GH_VER,
+  DEFAULT_GOLDHEN_CONFIG,
+  formatGoldHENIni,
+  getGoldHENConfig,
   getJbFlavor,
   isGoldHENSupported,
   resolvePayload,
+  setGoldHENConfig,
   setGoldHENVer,
 } from "../includes/js/HENs.js";
 import { offsetsFor, PS4, validateOffsets } from "../includes/js/ps4_offsets.js";
@@ -322,4 +326,50 @@ test("offset lookup uses firmware keys and reports missing tables", () => {
     off: null,
   });
   assert.equal(validateOffsets("15.00").ok, false);
+});
+
+test("GoldHEN configuration manager persists settings and formats config.ini", () => {
+  const origLocal = globalThis.localStorage;
+  const store = new MemoryStorage();
+  Object.defineProperty(globalThis, "localStorage", {
+    value: store,
+    configurable: true,
+    writable: true,
+  });
+
+  try {
+    const defaultConfig = getGoldHENConfig();
+    assert.deepEqual(defaultConfig, {
+      aioFix: true,
+      gamePatch: true,
+      pluginLoader: true,
+    });
+
+    const defaultIni = formatGoldHENIni(defaultConfig);
+    assert.match(defaultIni, /\[GoldHEN\]/);
+    assert.match(defaultIni, /AIO_Fix_Enabled = 1/);
+    assert.match(defaultIni, /Game_Patch_Enabled = 1/);
+    assert.match(defaultIni, /Plugin_Loader_Enabled = 1/);
+
+    setGoldHENConfig({ aioFix: false, gamePatch: true, pluginLoader: false });
+    const updatedConfig = getGoldHENConfig();
+    assert.equal(updatedConfig.aioFix, false);
+    assert.equal(updatedConfig.gamePatch, true);
+    assert.equal(updatedConfig.pluginLoader, false);
+
+    const updatedIni = formatGoldHENIni(updatedConfig);
+    assert.match(updatedIni, /AIO_Fix_Enabled = 0/);
+    assert.match(updatedIni, /Game_Patch_Enabled = 1/);
+    assert.match(updatedIni, /Plugin_Loader_Enabled = 0/);
+  } finally {
+    if (origLocal) {
+      Object.defineProperty(globalThis, "localStorage", {
+        value: origLocal,
+        configurable: true,
+        writable: true,
+      });
+    } else {
+      delete globalThis.localStorage;
+    }
+  }
 });

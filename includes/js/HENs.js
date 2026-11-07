@@ -130,6 +130,54 @@ export function resolvePayload(fwKey, requestedFlavor) {
   }
 }
 
+export const DEFAULT_GOLDHEN_CONFIG = Object.freeze({
+  aioFix: true,
+  gamePatch: true,
+  pluginLoader: true,
+});
+
+export function getGoldHENConfig() {
+  try {
+    const aioFix = localStorage.getItem("goldhen_aio_fix");
+    const gamePatch = localStorage.getItem("goldhen_game_patch");
+    const pluginLoader = localStorage.getItem("goldhen_plugin_loader");
+    return {
+      aioFix: aioFix === null ? true : aioFix === "1",
+      gamePatch: gamePatch === null ? true : gamePatch === "1",
+      pluginLoader: pluginLoader === null ? true : pluginLoader === "1",
+    };
+  } catch (e) {
+    return { ...DEFAULT_GOLDHEN_CONFIG };
+  }
+}
+
+export function setGoldHENConfig(cfg = {}) {
+  try {
+    if (typeof cfg.aioFix === "boolean") {
+      localStorage.setItem("goldhen_aio_fix", cfg.aioFix ? "1" : "0");
+    }
+    if (typeof cfg.gamePatch === "boolean") {
+      localStorage.setItem("goldhen_game_patch", cfg.gamePatch ? "1" : "0");
+    }
+    if (typeof cfg.pluginLoader === "boolean") {
+      localStorage.setItem("goldhen_plugin_loader", cfg.pluginLoader ? "1" : "0");
+    }
+  } catch (e) {}
+}
+
+export function formatGoldHENIni(cfg = {}) {
+  const c = { ...DEFAULT_GOLDHEN_CONFIG, ...cfg };
+  return (
+    "[GoldHEN]\n" +
+    "AIO_Fix_Enabled = " + (c.aioFix ? "1" : "0") + "\n" +
+    "Game_Patch_Enabled = " + (c.gamePatch ? "1" : "0") + "\n" +
+    "Plugin_Loader_Enabled = " + (c.pluginLoader ? "1" : "0") + "\n" +
+    "FTP_Port = 2121\n" +
+    "BinLoader_Port = 9090\n" +
+    "Klog_Port = 3232\n"
+  );
+}
+
 // Window global bindings for non-module integration
 if (typeof window !== "undefined") {
   window.RAW_HENS = {
@@ -141,5 +189,9 @@ if (typeof window !== "undefined") {
     resolvePayload,
     GOLDHEN_VERSIONS,
     HX1400_HEN_FILE,
+    DEFAULT_GOLDHEN_CONFIG,
+    getGoldHENConfig,
+    setGoldHENConfig,
+    formatGoldHENIni,
   };
 }

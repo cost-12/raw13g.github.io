@@ -118,7 +118,7 @@ export async function sendPs4DebugPayload(dependencies = {}) {
 
 export function bindPs4DebugControls({ root, isSupported }) {
   if (!root) return;
-  if (!isSupported) {
+  if (isSupported === false) {
     root.classList.add("is-hidden");
     return;
   }
@@ -126,7 +126,20 @@ export function bindPs4DebugControls({ root, isSupported }) {
   root.classList.remove("is-hidden");
   const button = root.querySelector("[data-ps4debug-send]");
   const status = root.querySelector("[data-ps4debug-status]");
+  const ipInput = root.querySelector("[data-ps4debug-target-ip]") || document.querySelector("[data-binloader-target-ip]");
   if (!button) return;
+
+  if (ipInput) {
+    try {
+      const savedIp = localStorage.getItem("ps4_binloader_ip");
+      if (savedIp) ipInput.value = savedIp;
+      ipInput.addEventListener("input", (e) => {
+        try {
+          localStorage.setItem("ps4_binloader_ip", e.target.value.trim());
+        } catch (err) {}
+      });
+    } catch (e) {}
+  }
 
   if (status) {
     status.textContent =
@@ -140,20 +153,28 @@ export function bindPs4DebugControls({ root, isSupported }) {
       status.dataset.state = "loading";
       status.textContent = "Validando o binário e enviando ps4debug-NG ao BinLoader...";
     }
+
+    const targetIp = (ipInput && ipInput.value.trim()) || (typeof localStorage !== "undefined" && localStorage.getItem("ps4_binloader_ip")) || "127.0.0.1";
+    const customEndpoint = "http://" + targetIp + ":9090/";
+
     try {
-      const result = await sendPs4DebugPayload();
+      const result = await sendPs4DebugPayload({ endpoint: customEndpoint });
       if (status) {
         status.dataset.state = "accepted";
         status.textContent =
           "BinLoader aceitou " + result.bytes + " bytes (HTTP " +
           result.httpStatus + "). TCP " + result.debuggerPort +
           " ainda não foi confirmado. No computador da rede, execute: " +
-          "node scripts/ps4debug-probe.mjs <IP-do-PS4>.";
+          "node scripts/ps4debug-probe.mjs " + targetIp + ".";
       }
     } catch (error) {
       if (status) {
         status.dataset.state = "error";
-        status.textContent = error && error.message ? error.message : String(error);
+        let msg = error && error.message ? error.message : String(error);
+        if (location.protocol === "https:" && (msg.includes("127.0.0.1:9090") || msg.includes("conectar") || msg.includes("NetworkError") || msg.includes("Failed to fetch"))) {
+          msg += " (GitHub Pages HTTPS restringe conexões de rede locais por Conteúdo Misto. Utilize o comando de envio no terminal ou execute via host HTTP local).";
+        }
+        status.textContent = msg;
       }
     } finally {
       button.disabled = false;

@@ -18,7 +18,7 @@ const T = HX1400_TABLES;
 const P = T.P;
 
 const NUM = {
-  read: 3, write: 4, close: 6, open: 5, getuid: 24,
+  read: 3, write: 4, close: 6, open: 5, getuid: 24, mkdir: 136,
   socket: 97, socketpair: 135,
   setsockopt: 105, getsockopt: 118,
   kqueue: 362, kevent: 363,
@@ -1057,6 +1057,54 @@ async function stage10Payload(c, d) {
       "/" + paths.length);
     return found;
   };
+
+  const writeGoldHenConfig = () => {
+    try {
+      const aioFix = c.params ? c.params.get("aio_fix") !== "0" : true;
+      const gamePatch = c.params ? c.params.get("game_patch") !== "0" : true;
+      const pluginLoader = c.params ? c.params.get("plugin_loader") !== "0" : true;
+
+      const makeStr = (str) => {
+        const b = allocBuf(str.length + 1);
+        const u = new Uint8Array(b.ab);
+        for (let i = 0; i < str.length; i++) u[i] = str.charCodeAt(i);
+        u[str.length] = 0;
+        return b.addr;
+      };
+
+      scn("mkdir", makeStr("/data"), 0x1ff);
+      scn("mkdir", makeStr("/data/GoldHEN"), 0x1ff);
+      scn("mkdir", makeStr("/data/hen"), 0x1ff);
+
+      const ini =
+        "[GoldHEN]\n" +
+        "AIO_Fix_Enabled = " + (aioFix ? 1 : 0) + "\n" +
+        "Game_Patch_Enabled = " + (gamePatch ? 1 : 0) + "\n" +
+        "Plugin_Loader_Enabled = " + (pluginLoader ? 1 : 0) + "\n" +
+        "FTP_Port = 2121\n" +
+        "BinLoader_Port = 9090\n" +
+        "Klog_Port = 3232\n";
+
+      const cb = allocBuf(ini.length);
+      const cu8 = new Uint8Array(cb.ab);
+      for (let i = 0; i < ini.length; i++) cu8[i] = ini.charCodeAt(i);
+
+      const fd = scn("open", makeStr("/data/GoldHEN/config.ini"), 0x0601, 0x1b6);
+      if (fd >= 0) {
+        scn("write", fd, cb.addr, ini.length);
+        scn("close", fd);
+        log("GOLDHEN-CONFIG", "written=true path=/data/GoldHEN/config.ini aio_fix=" + (aioFix ? 1 : 0) + " game_patch=" + (gamePatch ? 1 : 0));
+      }
+      const henFd = scn("open", makeStr("/data/hen/hen.ini"), 0x0601, 0x1b6);
+      if (henFd >= 0) {
+        scn("write", henFd, cb.addr, ini.length);
+        scn("close", henFd);
+      }
+    } catch (e) {
+      log("GOLDHEN-CONFIG-ERROR", String(e));
+    }
+  };
+  writeGoldHenConfig();
 
   // The donated image's entry returns a 0..9 status. Earlier thread-based
   // runs recorded only pthread_create, leaving the payload result unknown.

@@ -237,10 +237,15 @@ export async function sendFanThreshold(temperature, dependencies = {}) {
   });
 }
 
+export function getBinLoaderEndpoint(customIp) {
+  const ip = customIp || (typeof localStorage !== "undefined" && localStorage.getItem("ps4_binloader_ip")) || "127.0.0.1";
+  return "http://" + ip + ":9090/";
+}
+
 export function bindFanThresholdControls({ root, isSupported }) {
   if (!root) return;
 
-  if (!isSupported) {
+  if (isSupported === false) {
     root.classList.add("is-hidden");
     return;
   }
@@ -248,7 +253,20 @@ export function bindFanThresholdControls({ root, isSupported }) {
   root.classList.remove("is-hidden");
   const status = root.querySelector("[data-fan-status]");
   const buttons = Array.from(root.querySelectorAll("[data-fan-threshold]"));
+  const ipInput = root.querySelector("[data-fan-target-ip]") || document.querySelector("[data-binloader-target-ip]");
   let busy = false;
+
+  if (ipInput) {
+    try {
+      const savedIp = localStorage.getItem("ps4_binloader_ip");
+      if (savedIp) ipInput.value = savedIp;
+      ipInput.addEventListener("input", (e) => {
+        try {
+          localStorage.setItem("ps4_binloader_ip", e.target.value.trim());
+        } catch (err) {}
+      });
+    } catch (e) {}
+  }
 
   if (status) {
     status.textContent =
@@ -267,8 +285,11 @@ export function bindFanThresholdControls({ root, isSupported }) {
           "Enviando payload Fan Threshold (" + temperature + " °C) ao BinLoader...";
       }
 
+      const targetIp = (ipInput && ipInput.value.trim()) || (typeof localStorage !== "undefined" && localStorage.getItem("ps4_binloader_ip")) || "127.0.0.1";
+      const customEndpoint = "http://" + targetIp + ":9090/";
+
       try {
-        const result = await sendFanThreshold(temperature);
+        const result = await sendFanThreshold(temperature, { endpoint: customEndpoint });
         if (status) {
           status.dataset.state = "ok";
           status.textContent =
@@ -278,8 +299,11 @@ export function bindFanThresholdControls({ root, isSupported }) {
       } catch (error) {
         if (status) {
           status.dataset.state = "error";
-          status.textContent =
-            error && error.message ? error.message : String(error);
+          let msg = error && error.message ? error.message : String(error);
+          if (location.protocol === "https:" && (msg.includes("127.0.0.1:9090") || msg.includes("conectar") || msg.includes("NetworkError") || msg.includes("Failed to fetch"))) {
+            msg += " (GitHub Pages HTTPS restringe conexões de rede locais por Conteúdo Misto. Utilize o comando de envio no terminal ou execute via host HTTP local).";
+          }
+          status.textContent = msg;
         }
       } finally {
         busy = false;
