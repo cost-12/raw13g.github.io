@@ -20,7 +20,7 @@
   <div class="brand-left">
     <img src="includes/img/logo_raw.png" alt="RAW GAME Logo" width="32" height="32">
     <b>RAW GAME</b>
-    <span class="brand-tag">v5.0 Multi-FW</span>
+    <span class="brand-tag">v5.1 Multi-FW (AIO/Patch)</span>
   </div>
   <div id="headerBadges">
     <div id="fwBadge" class="badge">
@@ -434,7 +434,7 @@
         optGoldHEN.classList.remove("selected");
         optGoldHEN.setAttribute("aria-checked", "false");
         goldhenVersionsCard.style.display = "none";
-        if (goldhenConfigCard) goldhenConfigCard.style.display = "none";
+        if (goldhenConfigCard) goldhenConfigCard.style.display = (currentFlavor === "GoldHEN" || fwKey === "14.00") ? "block" : "none";
         if (fwKey === "14.00" && fw14GroomCard) {
           fw14GroomCard.style.display = "block";
         } else if (fw14GroomCard) {
